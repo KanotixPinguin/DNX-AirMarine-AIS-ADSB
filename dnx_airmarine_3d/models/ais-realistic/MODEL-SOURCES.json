@@ -1,0 +1,163 @@
+{
+  "source_repository": "https://github.com/jchisholm59/ais-monitor",
+  "source_tag": "v1.8.1",
+  "source_commit": "064dad517774034ad796f61689db5496fbe78d49",
+  "license": "CC BY 4.0",
+  "license_url": "https://creativecommons.org/licenses/by/4.0/",
+  "assets": [
+    {
+      "key": "container",
+      "file": "ship-container.glb",
+      "title": "Container Ship",
+      "author": "RM02",
+      "model_uid": "aaa41cca946b4a08bc08cf692b7757be",
+      "model_url": "https://sketchfab.com/3d-models/aaa41cca946b4a08bc08cf692b7757be",
+      "source_url": "https://raw.githubusercontent.com/jchisholm59/ais-monitor/v1.8.1/dist/ship-container.glb",
+      "bytes": 2137496,
+      "sha256": "3971cfdc752858649bc5a6b235a8832bf2ab6dee3c0ad3b4b4655c0ce8f57c2b"
+    },
+    {
+      "key": "tanker",
+      "file": "ship-tanker.glb",
+      "title": "Tanker Ship",
+      "author": "Art Blender",
+      "model_uid": "96ebf61af42b4062ae98a6ad848e1a25",
+      "model_url": "https://sketchfab.com/3d-models/96ebf61af42b4062ae98a6ad848e1a25",
+      "source_url": "https://raw.githubusercontent.com/jchisholm59/ais-monitor/v1.8.1/dist/ship-tanker.glb",
+      "bytes": 732648,
+      "sha256": "346aa491ac0f95f43c0d02b040c91c6fb6c6e675688a883c6ec5e1fdb31fc7b6"
+    },
+    {
+      "key": "lng",
+      "file": "ship-lng.glb",
+      "title": "LNG Ship",
+      "author": "Art Blender",
+      "model_uid": "fa335b96450d4344863bbf5d912a0288",
+      "model_url": "https://sketchfab.com/3d-models/fa335b96450d4344863bbf5d912a0288",
+      "source_url": "https://raw.githubusercontent.com/jchisholm59/ais-monitor/v1.8.1/dist/ship-lng.glb",
+      "bytes": 440152,
+      "sha256": "43839bc8eff0862a5061a3cd831d880e25606e37bdd7246f3972a226fc3f0e93"
+    },
+    {
+      "key": "bulk",
+      "file": "ship-bulk.glb",
+      "title": "Bulk Carrier - TFCC HERITAGE - IBEE Corp",
+      "author": "Gwenaël Hervé",
+      "model_uid": "e78b4f1fdc094a63bb7d6c24d8e7e7dd",
+      "model_url": "https://sketchfab.com/3d-models/e78b4f1fdc094a63bb7d6c24d8e7e7dd",
+      "source_url": "https://raw.githubusercontent.com/jchisholm59/ais-monitor/v1.8.1/dist/ship-bulk.glb",
+      "bytes": 578680,
+      "sha256": "53e56377f93f387b4d78f1e38915e2611ff6e3eca4c7c23ed9e902240bc8c4af"
+    },
+    {
+      "key": "cruise",
+      "file": "ship-cruise.glb",
+      "title": "Cruise Ship",
+      "author": "farhad.Guli",
+      "model_uid": "bb782326932e4c179e34f3d6c8e36b86",
+      "model_url": "https://sketchfab.com/3d-models/bb782326932e4c179e34f3d6c8e36b86",
+      "source_url": "https://raw.githubusercontent.com/jchisholm59/ais-monitor/v1.8.1/dist/ship-cruise.glb",
+      "bytes": 202072,
+      "sha256": "b151a0727ce8ba6d48cb38ebc97b1d58cecc9dbec48bc88763627b5d2066ab63"
+    },
+    {
+      "key": "ferry_small",
+      "file": "ship-ferry_small.glb",
+      "title": "Sydney Emerald-Class Low Poly",
+      "author": "A Certain Duck",
+      "model_uid": "8b39b8957231420d919b60febb627bd5",
+      "model_url": "https://sketchfab.com/3d-models/8b39b8957231420d919b60febb627bd5",
+      "source_url": "https://raw.githubusercontent.com/jchisholm59/ais-monitor/v1.8.1/dist/ship-ferry_small.glb",
+      "bytes": 267688,
+      "sha256": "0521a36fa15d1edb82b617ffa1d6b62a500a0e03cbb7807272de31fc89ed2756"
+    },
+    {
+      "key": "ferry",
+      "file": "ship-ferry.glb",
+      "title": "Hailuoto car ferry L/A Meriluoto",
+      "author": "Snowsoup",
+      "model_uid": "44eaf2dd56b74e76a310d2e532957dbe",
+      "model_url": "https://sketchfab.com/3d-models/44eaf2dd56b74e76a310d2e532957dbe",
+      "source_url": "https://raw.githubusercontent.com/jchisholm59/ais-monitor/v1.8.1/dist/ship-ferry.glb",
+      "bytes": 639876,
+      "sha256": "cd393af7e7844cefaa35e991db4d296743fbfc1a094381bd9622007cd78f497e"
+    },
+    {
+      "key": "navy",
+      "file": "ship-navy.glb",
+      "title": "1:1 Low poly US NAVY DDG-51 USS Arleigh Burke.",
+      "author": "Yi Tsung Lee",
+      "model_uid": "17be09c31c6047e4a5969b68c29eba03",
+      "model_url": "https://sketchfab.com/3d-models/17be09c31c6047e4a5969b68c29eba03",
+      "source_url": "https://raw.githubusercontent.com/jchisholm59/ais-monitor/v1.8.1/dist/ship-navy.glb",
+      "bytes": 744380,
+      "sha256": "6da7a76fb79a6482c4173fd3c64a9be27909063b26f2734ec5d35f7a6168ccca"
+    },
+    {
+      "key": "pilot",
+      "file": "ship-pilot.glb",
+      "title": "Pilot II",
+      "author": "gogiart",
+      "model_uid": "6ea031237b6b4382ab362790f8af4e66",
+      "model_url": "https://sketchfab.com/3d-models/6ea031237b6b4382ab362790f8af4e66",
+      "source_url": "https://raw.githubusercontent.com/jchisholm59/ais-monitor/v1.8.1/dist/ship-pilot.glb",
+      "bytes": 815864,
+      "sha256": "252220b639412ab4e1b7f01608f86c13449dc9291e0c16fbc98cbadb5b7b7547"
+    },
+    {
+      "key": "sail",
+      "file": "ship-sail.glb",
+      "title": "Sailboat",
+      "author": "Sergei",
+      "model_uid": "76d0b1e24be14d2f9a524bfce3001aeb",
+      "model_url": "https://sketchfab.com/3d-models/76d0b1e24be14d2f9a524bfce3001aeb",
+      "source_url": "https://raw.githubusercontent.com/jchisholm59/ais-monitor/v1.8.1/dist/ship-sail.glb",
+      "bytes": 192304,
+      "sha256": "1e8982957c319c3c56ad7f7471dd362e0f9634fd34e5281a48470718b9e6285f"
+    },
+    {
+      "key": "yacht",
+      "file": "ship-yacht.glb",
+      "title": "Frickie's yacht",
+      "author": "dannzjs",
+      "model_uid": "1afd320662384bc0910f1778e9cb5eae",
+      "model_url": "https://sketchfab.com/3d-models/1afd320662384bc0910f1778e9cb5eae",
+      "source_url": "https://raw.githubusercontent.com/jchisholm59/ais-monitor/v1.8.1/dist/ship-yacht.glb",
+      "bytes": 1052872,
+      "sha256": "bd2a322e335c7fb339a1d13358c7fbf7853d4c268ef2d752362d5c450759fad8"
+    },
+    {
+      "key": "runabout",
+      "file": "ship-runabout.glb",
+      "title": "bateau RIVA boat",
+      "author": "maxipub",
+      "model_uid": "91f0f11ba42b4000abf788d54d73b9b1",
+      "model_url": "https://sketchfab.com/3d-models/91f0f11ba42b4000abf788d54d73b9b1",
+      "source_url": "https://raw.githubusercontent.com/jchisholm59/ais-monitor/v1.8.1/dist/ship-runabout.glb",
+      "bytes": 974344,
+      "sha256": "48b7118a72ebee7f82b15172fb54777184be0042ad9b48e80a77c7cb07554171"
+    },
+    {
+      "key": "tug",
+      "file": "ship-tug.glb",
+      "title": "40ft Tugboat",
+      "author": "Potater_King",
+      "model_uid": "0555e3e0c1be4080a2ba6731b801f8da",
+      "model_url": "https://sketchfab.com/3d-models/0555e3e0c1be4080a2ba6731b801f8da",
+      "source_url": "https://raw.githubusercontent.com/jchisholm59/ais-monitor/v1.8.1/dist/ship-tug.glb",
+      "bytes": 1271516,
+      "sha256": "e72c53229cc7384b2fea0dcfc821eaa7d2bb3123cd5dd36596372f4985d37264"
+    },
+    {
+      "key": "fishing",
+      "file": "ship-fishing.glb",
+      "title": "Fishing Ship game-ready asset",
+      "author": "Dominik Biały",
+      "model_uid": "f791868a8b5f4996a49a3c8cd99336f6",
+      "model_url": "https://sketchfab.com/3d-models/f791868a8b5f4996a49a3c8cd99336f6",
+      "source_url": "https://raw.githubusercontent.com/jchisholm59/ais-monitor/v1.8.1/dist/ship-fishing.glb",
+      "bytes": 1780724,
+      "sha256": "ffccf677591ed6b0173576a6b5f008880a513ba6fa48923d76f75564737d237a"
+    }
+  ]
+}

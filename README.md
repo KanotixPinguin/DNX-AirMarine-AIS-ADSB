@@ -18,6 +18,12 @@
 > - **No Public Support & No Warranty:** There is **no public support**, no warranty, and no liability. Use entirely at your own risk.
 > - **Pure Hobby Project — Free to Use, Modify & Redistribute:** Created solely out of personal hobby interest in the shared radio/SDR hobby; freely available to use, share, modify, and improve.
 
+<!-- DNX-PREVIEW-START -->
+## Live-Vorschau / Live Preview
+
+![Live-Vorschau / Live Preview — DNX AirMarine AIS ADSB](docs/preview.png)
+<!-- DNX-PREVIEW-END -->
+
 Browser-side AIS/ADS-B add-on for compatible OpenWebRX+ installations. This release adds an orbiting 3D follow-camera for a selected AIS ship, optional visual-only model heading adjustment, and 14 representative class-based ship models with bundled attribution.
 
 **Deployment and publication:** v4.09 was deployed to the target receiver and published to the DNX Projects catalog on 2026-10-18 without a receiver/container restart. The AirMarine catalog entry keeps its existing project URL and now serves this v4.09 package; the prior v4.08 ZIP is retained in a private backup. Project page: <<PROJECT_MANAGER_URL>/project/1f0836d4eaef4b6a96bcb55f61a1b7b8>. A headless browser test using the receiver's actual CesiumJS 1.121 vendor files loaded all 14 models (`Model.ready === true`) and visibly rendered a reference model without console/page/request errors. A full interactive OpenWebRX/live-AIS follow-view E2E test was not performed.

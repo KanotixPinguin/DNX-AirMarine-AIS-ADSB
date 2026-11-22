@@ -19,9 +19,19 @@
 > - **Pure Hobby Project — Free to Use, Modify & Redistribute:** Created solely out of personal hobby interest in the shared radio/SDR hobby; freely available to use, share, modify, and improve.
 
 <!-- DNX-PREVIEW-START -->
-## Live-Vorschau / Live Preview
+## Live-Vorschau & Galerie (`DNX AirMarine AIS/ADS-B`)
 
 ![Live-Vorschau / Live Preview — DNX AirMarine AIS/ADS-B](docs/preview.png)
+
+| Ansicht | Beschreibung | Screenshot |
+|---|---|---|
+| **AIS & ADS-B Gesamtansicht** | Parallelbetrieb von AIS (`Nautik · OSM + OpenSeaMap`, Cuxhaven/Elbe) & ADS-B (`Satellit + Orte`, Norddeutschland) in `BEIDE` (2D + 3D Cesium) | ![AIS & ADS-B Gesamtansicht](docs/preview.png) |
+| **AIS 2D + 3D Cesium** | Schiffsverkehr mit 6 Schiffsklassen (`Container`, `Tanker`, `Fähre`, `Schlepper`, `Lotsenboot`, `Segelschiff`), kurzen Spuren & realer Küste | ![AIS 2D + 3D Cesium](docs/ais-2d-3d-cesium.png) |
+| **AIS Folgeansicht & Details** | Aktive 3D-Verfolgungskamera (`▶ Läuft`) auf `ELBE EXPRESS` samt `Infos`-Panel (`Identität 1/4`: MMSI, IMO, Rufzeichen) | ![AIS Folgeansicht & Details](docs/ais-folgeansicht-detail.png) |
+| **ADS-B 2D + 3D Cesium** | Flugverkehr (`DLH456`, `DLH118`, `CFG204`, `CHX8`, `RYR82K`, `EWG41M`) mit `Satellit + Orte`, Höhen-3D-Modellen & Bodenspuren | ![ADS-B 2D + 3D Cesium](docs/adsb-2d-3d-cesium.png) |
+| **ADS-B Folgeansicht & Details** | 3D-Verfolgung (`▶ Läuft`) eines `A380` (`DLH456`) samt Mictronics-Typabgleich & Registrierung (`D-AIMB`) | ![ADS-B Folgeansicht & Details](docs/adsb-folgeansicht-detail.png) |
+| **Ebenen & Darstellung** | Einstellungs-Popover: `Globus` (Sonnenlicht, Tag/Nacht, 3D-Gebäude/-Gelände), `Grafik` (FXAA, MSAA, Labels, HDR), `Karte`, `Wetter`, `Spuren` & `Filter` | ![Ebenen & Darstellung](docs/ebenen-und-darstellung.png) |
+| **Kartenstile & Wetter-Overlays** | `Esri Straßen` + `Seekarten-Signale` (links) und `OpenTopoMap` + `Bahnstrecken` + `NASA-Satellitenbild` mit geöffneter Ebenen-Auswahl (rechts) | ![Kartenstile & Wetter-Overlays](docs/kartenstile-und-wetter-overlays.png) |
 <!-- DNX-PREVIEW-END -->
 
 Browser-side AIS/ADS-B add-on for compatible OpenWebRX+ installations. **Release v4.17 — published in the DNX Projects catalog.**

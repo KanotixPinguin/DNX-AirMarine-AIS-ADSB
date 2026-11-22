@@ -1,4 +1,4 @@
-# DNX AirMarine AIS/ADS-B v4.09
+# DNX AirMarine AIS/ADS-B (`v4.17`)
 
 <!-- DNX-DISCLAIMER-START -->
 > **Wichtiger Hinweis / Vollständige Distanzierung (Hobby-Mod-Mode)**
@@ -21,56 +21,55 @@
 <!-- DNX-PREVIEW-START -->
 ## Live-Vorschau / Live Preview
 
-![Live-Vorschau / Live Preview — DNX AirMarine AIS ADSB](docs/preview.png)
+![Live-Vorschau / Live Preview — DNX AirMarine AIS/ADS-B](docs/preview.png)
 <!-- DNX-PREVIEW-END -->
 
-Browser-side AIS/ADS-B add-on for compatible OpenWebRX+ installations. This release adds an orbiting 3D follow-camera for a selected AIS ship, optional visual-only model heading adjustment, and 14 representative class-based ship models with bundled attribution.
+Browser-side AIS/ADS-B add-on for compatible OpenWebRX+ installations. **Release v4.17 — published in the DNX Projects catalog.**
 
-**Deployment and publication:** v4.09 was deployed to the target receiver and published to the DNX Projects catalog on 2026-10-18 without a receiver/container restart. The AirMarine catalog entry keeps its existing project URL and now serves this v4.09 package; the prior v4.08 ZIP is retained in a private backup. Project page: <<PROJECT_MANAGER_URL>/project/1f0836d4eaef4b6a96bcb55f61a1b7b8>. A headless browser test using the receiver's actual CesiumJS 1.121 vendor files loaded all 14 models (`Model.ready === true`) and visibly rendered a reference model without console/page/request errors. A full interactive OpenWebRX/live-AIS follow-view E2E test was not performed.
+## What v4.17 contains — movement from A to B, fixed
 
-## What changed in v4.09
+v4.16's glide machinery was right, but a sampling bug froze it: every sync tick recorded a new motion sample even when the position had not changed (list re-broadcasts, altitude jitter). The velocity of the last two samples was diluted to zero, so targets never travelled from A to B. v4.17 records a motion sample **only when the target has really moved** (same ~3 m threshold as the trail), in both the 3D sampled positions and the 2D motion pairs. Now ships and aircraft visibly travel along their routes and glide continuously between reports — like SDRangel.
 
-- Right-click an AIS target and choose **“3D um dieses Schiff kreisen”** to follow it in a close 3D view. Drag to orbit; use the wheel or touch pinch to zoom. Presets provide behind, side, front, and overhead views; an optional 360° mode rotates the camera.
-- **Model-Offset** rotates only the visible model relative to the AIS course/heading. It is explicitly labelled as visual-only, does not modify AIS records, and has a reset button. Ending follow mode also restores the AIS-aligned model orientation.
-- Replaces the default AIS-class visuals with 14 locally served class models from `ais-monitor` v1.8.1. These are representative classes, not exact replicas of individual tracked vessels.
-- The 3D view links to a bundled attribution page listing model authors, Sketchfab sources, and CC BY 4.0; the package also includes source metadata, hashes, upstream credits, and the full license text.
+Everything else from v4.13–v4.16 is included: photo slideshow with „Typbild" caption, 50 px aircraft size, traffic-aware zoom, satellite + 6 keyless map styles, sun light, day/night, 3D buildings/terrain, FXAA/MSAA/HDR, label scale, rain radar + cloud animation + NASA imagery, ground tracks, Whittaker-Eilers smoothing, name/distance filters, smooth motion for ships and aircraft, target pursuit camera with lock-on silhouette, map pan-along, live follow HUD, railways, seamarks, position rings.
+
+## Aircraft sources and model-size calibration
+
+Seven no-logo models are from amvlab's [`aircraft-models`](https://github.com/amvlab/aircraft-models/tree/91d835e8e851b2317fe79af291c9fed6153fd525) repository at commit `91d835e8e851b2317fe79af291c9fed6153fd525`, CC BY 4.0. The helicopter, glider, and F-15 are CC BY 4.0 models by Gigantic Burger, helijah, and PolyDucky, respectively, distributed via [SDRangel 3D Models](https://github.com/srcejon/sdrangel-3d-models/tree/59d1ee24ebc2c24343afb54b26928f965a625140) at commit `59d1ee24ebc2c24343afb54b26928f965a625140`. See `dnx_airmarine_3d/models/adsb-realistic/credits.html` for visible per-model attribution.
+
+Bounds below are measured from GLB POSITION accessors after applying the full glTF node transform tree, then the runtime class scale. Axes are the model-file X/Y/Z bounds; they are not a browser-render verification.
+
+| Model | Source X × Y × Z bounds (metres, scaled) | Runtime scale | Nominal camera dimension |
+| --- | ---: | ---: | ---: |
+| A320 | 37.68 × 11.32 × 35.48 | 1.00 | 38 m |
+| A350 | 67.41 × 17.19 × 67.47 | 1.00 | 67 m |
+| A380 | 73.90 × 22.28 × 80.42 | 0.42 | 80 m |
+| B737 | 37.87 × 11.88 × 35.74 | 1.00 | 38 m |
+| B787 | 56.58 × 16.32 × 58.01 | 1.00 | 58 m |
+| eVTOL | 5.12 × 1.96 × 7.08 | 5.00 | 7 m |
+| Drone | 0.82 × 0.37 × 0.66 | 1.00 | 1 m |
+| F-15 | 14.46 × 5.29 × 21.94 | 1.00 | 22 m |
+| ASK 21 glider | 17.01 × 2.37 × 8.34 | 1.00 | 17 m |
+| Helicopter | 16.51 × 6.34 × 19.91 | 1.00 | 20 m |
+
+The A380's original imported bounds were roughly 2.4× too large, so it is corrected to 0.42×. The eVTOL source mesh is about one metre across, so it is scaled 5× to a representative 5–7 m aircraft. The seven amvlab models use +X forward; the SDRangel glTFs use +Z forward. The Cesium forward-axis option is selected per asset. The test suite checks the transformed bounds and class scales.
+
+**Validation note:** offline JavaScript regressions, source checks, GLB structure/provenance, and node-transform dimension checks pass. The zoom behaviour and the motion pipeline (sampled positions, 60 s linear extrapolation, single-sample hold, clock-driven rendering, primitive ticker) have been verified end-to-end in headless Chrome against the receiver's Cesium vendor build and by the offline regression suite (smoothing, filters, track modes, layer catalogue, ticker wiring). The Commons photo queries have been checked against the live API; RainViewer and NASA GIBS endpoints are the public documented services SDRangel also uses. The ten aircraft GLBs themselves still await a visual orientation/size check on the target receiver.
 
 ## Package contents
 
-- `dnx_styler.js` — complete v4.09 Styler with cache-busted AirMarine loader.
-- `dnx_stand.txt` — matching version/size stamp: `v4.09 614560`.
-- `dnx_airmarine_3d/dnx_airmarine_3d.js` — AIS/ADS-B frontend module.
-- `dnx_airmarine_3d/models/ais-realistic/` — 14 CC BY 4.0 GLBs, `credits.html`, `CREDITS.md`, `UPSTREAM-CREDITS.md`, `MODEL-SOURCES.json`, per-file `SHA256SUMS.txt`, and the CC BY 4.0 legal code.
-- `tests/` — offline AIS/ADS-B regression test and GLB/provenance integrity check.
-- Top-level `SHA256SUMS.txt` — integrity checks for package files other than this checksum list.
+- `dnx_styler.js` — v4.17 Styler with the matching loader cache-buster.
+- `dnx_stand.txt` — matching version/size stamp: `v4.17 614560`.
+- `dnx_airmarine_3d/dnx_airmarine_3d.js` — AirMarine frontend module.
+- `dnx_airmarine_3d/models/ais-realistic/` — the 14 CC BY 4.0 ship models and their credits.
+- `dnx_airmarine_3d/models/adsb-realistic/` — ten CC BY 4.0 aircraft models, source/license notices, credits, manifest, and checksums.
+- `tests/` — offline AIS/ADS-B regression test and model/provenance/dimension integrity check.
+- Top-level `SHA256SUMS.txt` — package file checksums, excluding the checksum file itself.
 
-## Runtime dependencies and scope
+## Runtime dependencies and installation notes
 
-The receiver must already provide Cesium and Leaflet at `/static/plugins/receiver/dnx_weather/vendor/cesium/` and `/static/plugins/receiver/dnx_weather/vendor/leaflet/`, plus the existing AIS/ADS-B data stream from its active OpenWebRX profile. For fallback when a new GLB fails to load, the module uses the receiver's pre-existing `models/ais/` files; the ADS-B view also expects its existing `models/aircraft/Cesium_Air.glb`. Those legacy files are deliberately not redistributed in this package because their separate redistribution licenses have not been verified. Keep them in place when updating an existing receiver.
+The receiver must already provide CesiumJS at `/static/plugins/receiver/dnx_weather/vendor/cesium/`, Leaflet at `/static/plugins/receiver/dnx_weather/vendor/leaflet/`, and the active profile's existing AIS/ADS-B data streams. The package expects and does **not** replace the receiver's existing fallback assets:
 
-The new ship GLBs use `EXT_meshopt_compression`, `EXT_texture_webp`, and `KHR_mesh_quantization` (ferry/runabout also use `EXT_mesh_gpu_instancing`). Use a Cesium build that supports those glTF extensions. The receiver's local bundle reported CesiumJS 1.121 in the headless test, where all 14 GLBs loaded successfully. The GLBs are served from the receiver; they are not fetched from Sketchfab at runtime.
+- `dnx_airmarine_3d/models/aircraft/Cesium_Air.glb` — required ADS-B fallback.
+- `dnx_airmarine_3d/models/ais/` — legacy AIS fallback class models.
 
-No receiver core, OpenWebRX core, Docker configuration, profile, second decoder, WebSocket, hard-coded receiver/profile ID, or iframe is added. The add-on passively reads messages already delivered to the open page. OSM/OpenSeaMap and Wikimedia Commons features need browser internet access; OpenSeaMap is a transparent seamark overlay, not an official nautical chart and not for navigation. Esri imagery remains disabled unless a suitable restricted API key is configured.
-
-## Install overview
-
-Back up the target receiver's current Styler, `dnx_stand.txt`, AirMarine module, and any existing `models/ais-realistic/` directory. Install the two top-level files in the receiver plugin directory and place the AirMarine module and `models/ais-realistic/` subtree under `dnx_airmarine_3d/`. Preserve the receiver's existing `models/ais/`, aircraft-model, and local Weather vendor directories. Refresh the browser after installation. Paths may need adjustment on non-DNX OpenWebRX+ layouts.
-
-## Verification
-
-Run from `tests/` with Node.js and Python 3:
-
-```sh
-node --check ../dnx_airmarine_3d/dnx_airmarine_3d.js
-node --check test_decoder.js
-node test_decoder.js
-python3 test_model_assets.py
-```
-
-The offline checks cover the existing AIS/ADS-B data paths, class/model selection, bounded model dimensions, camera-orbit geometry, visual-only heading offset, GLB structure/extensions, attribution records, and checksums. A separate headless CesiumJS 1.121 test used the receiver's actual vendor files: all 14 models reached `Model.ready === true`, a reference model rendered visibly, and there were no browser console/page/request errors. This does not replace a full interactive OpenWebRX/live-AIS follow-view test.
-
-## Model attribution and license
-
-The 14 model assets are the preprocessed GLBs from [`jchisholm59/ais-monitor` v1.8.1](https://github.com/jchisholm59/ais-monitor/tree/v1.8.1), commit `064dad517774034ad796f61689db5496fbe78d49`. Each original Sketchfab model is licensed by its author under [Creative Commons Attribution 4.0 International (CC BY 4.0)](https://creativecommons.org/licenses/by/4.0/). Authors, source links, asset identifiers, and per-file hashes are included in the attribution and manifest files. Preserve attribution and the license when redistributing these model files. The model authors and upstream project do not endorse this DNX integration.
-
-The DNX code itself has no separate reuse license specified in this package; do not infer a code license from the model license or from a separate Styler listing.
+Photos load at runtime from Wikimedia Commons and need internet access in the browser; without it the info panels simply show „Kein Bild gefunden".

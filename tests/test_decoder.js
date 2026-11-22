@@ -1,8 +1,14 @@
 "use strict";
 const fs = require("fs");
+const path = require("path");
 const vm = require("vm");
 const assert = require("assert");
-const source = fs.readFileSync(require("path").join(__dirname, "../dnx_airmarine_3d/dnx_airmarine_3d.js"), "utf8");
+const modulePath = [
+  path.join(__dirname, "dnx_airmarine_3d.js"),
+  path.join(__dirname, "..", "dnx_airmarine_3d", "dnx_airmarine_3d.js")
+].find(fs.existsSync);
+assert(modulePath, "AirMarine module found next to tests or in the package module folder");
+const source = fs.readFileSync(modulePath, "utf8");
 const window = { __DNX_AIRMARINE_TEST__: true, location: { href: "https://receiver.example/" } };
 let fetchImpl = () => Promise.resolve({ ok: true, json: () => Promise.resolve({ query: { pages: [] } }) });
 const testContext = {
@@ -33,6 +39,39 @@ assert.strictEqual(api.aisModelAssetKey({ shipType: 35, name: "PATROL VESSEL", l
 assert.strictEqual(api.aisModelAssetKey({ shipType: 33, name: "DREDGER", lengthM: 105 }), "tug");
 assert.strictEqual(api.aisModelAssetKey({ shipType: 0, name: "", lengthM: 160 }), "container");
 assert.strictEqual(api.aisModelAssetKey({ isAid: true, shipType: 70, lengthM: 100 }), null);
+assert.strictEqual(api.adsbModelAssetKey({ aircraft: "A320-214" }), "a320");
+assert.strictEqual(api.adsbModelAssetKey({ category: "B738" }), "b737",
+  "an ADS-B-LIST type code may be exposed as category/type by some producers");
+assert.strictEqual(api.adsbModelAssetKey({ aircraft: "A350-900" }), "a350");
+assert.strictEqual(api.adsbModelAssetKey({ aircraft: "A380-800" }), "a380");
+assert.strictEqual(api.adsbModelAssetKey({ aircraft: "B738" }), "b737");
+assert.strictEqual(api.adsbModelAssetKey({ aircraft: "B789" }), "b787");
+assert.strictEqual(api.adsbModelAssetKey({ aircraft: "F15E" }), "f15");
+assert.strictEqual(api.adsbModelAssetKey({ aircraft: "EC35" }), "helicopter");
+assert.strictEqual(api.adsbModelAssetKey({ aircraft: "ASK21" }), "glider");
+assert.strictEqual(api.adsbModelAssetKey({ aircraft: "DJI MAVIC 3" }), "drone");
+assert.strictEqual(api.adsbModelAssetKey({ aircraft: "CITY EVTOL" }), "evtol");
+assert.strictEqual(api.adsbModelAssetKey({ aircraft: "C172" }), null,
+  "unmapped types should retain the Cesium Air fallback");
+assert.strictEqual(api.adsbModelAssetKey({ category: "D1" }), "drone");
+assert.strictEqual(api.aircraftModelLength({ aircraft: "B789" }), 58);
+assert.strictEqual(api.aircraftModelLength({ aircraft: "A380" }), 80);
+assert.strictEqual(api.aircraftModelLength({ aircraft: "EC35" }), 20);
+assert.strictEqual(api.aircraftModelLength({ aircraft: "F15" }), 22);
+assert.strictEqual(api.aircraftModelScale({ aircraft: "A380" }), 0.42);
+assert.strictEqual(api.aircraftModelScale({ aircraft: "EVTOL" }), 5);
+assert.strictEqual(api.aircraftModelForwardAxis({ aircraft: "A320" }), "X");
+assert.strictEqual(api.aircraftModelForwardAxis({ aircraft: "F15" }), "Z");
+assert.strictEqual(api.aircraftModelForwardAxis({ aircraft: "ASK21" }), "Z");
+assert.strictEqual(api.aircraftModelAssetFile({ aircraft: "A320" }), "A320_nologo.glb");
+assert.strictEqual(api.aircraftModelAssetFile({ aircraft: "EC35" }), "helicopter.glb");
+assert.strictEqual(api.aircraftModelAssetFile({ aircraft: "C172" }), null);
+assert.strictEqual(api.aircraftModelLength({ aircraft: "C172" }), 32,
+  "the fallback aircraft should use a stable nominal follow-camera range");
+const adsbHeading = { courseDeg: 359 };
+assert.strictEqual(api.followVisualHeadingFor("adsb", adsbHeading, 6), 5,
+  "ADS-B visual offset should wrap without overwriting the reported track");
+assert.strictEqual(adsbHeading.courseDeg, 359, "the ADS-B display offset must not mutate telemetry");
 assert.deepStrictEqual(JSON.parse(JSON.stringify(api.aisShipDimensions({ kindName: "cargo", lengthM: 4, beamM: 12 }))),
   { length: 12, beam: 4, kind: "cargo" }, "bad AIS length/beam values should be swapped");
 assert.deepStrictEqual(JSON.parse(JSON.stringify(api.aisShipDimensions({ kindName: "tanker", lengthM: 600, beamM: 100 }))),
@@ -272,8 +311,254 @@ assert.strictEqual(aircraft.freq, "1090 MHz");
 assert.strictEqual(aircraft.lat, 51.7);
 
 testExactPhotoSearchFallback().then(() => {
-  console.log("PASS: AIS/ADS-B data paths, ship asset mapping and size bounds, camera-orbit geometry, photo search, and close-up zoom bounds");
+  console.log("PASS: AIS/ADS-B data paths, ship and aircraft model mapping/scales/axes, visual-only heading offsets, camera geometry, photo search, and model bounds");
 }).catch((error) => {
   console.error(error);
   process.exitCode = 1;
 });
+
+/* ---- v4.14: motion extrapolation (2D) ---- */
+{
+  const rec = { lat: 52.5, lon: 13.4 };
+  api.updateMotion2d(rec);
+  rec.lon = 13.43;
+  api.updateMotion2d(rec);
+  assert(rec.__motion2d && rec.__motion2d.x0 === 13.4 && rec.__motion2d.x1 === 13.43, "motion2d keeps last two samples");
+  rec.__motion2d.t0 = Date.now() - 5000; rec.__motion2d.t1 = Date.now();
+  let out = api.extrapolate2d(rec);
+  assert(Math.abs(out.lon - 13.43) < 0.0015, "extrapolation at sample time returns the sample, got " + out.lon);
+  rec.__motion2d.t0 = Date.now() - 15000; rec.__motion2d.t1 = Date.now() - 10000;
+  out = api.extrapolate2d(rec);
+  assert(Math.abs(out.lon - (13.43 + 0.06)) < 0.004, "linear extrapolation continues at sample velocity, got " + out.lon);
+  rec.__motion2d.t0 = Date.now() - 125000; rec.__motion2d.t1 = Date.now() - 120000;
+  out = api.extrapolate2d(rec);
+  assert(Math.abs(out.lon - (13.43 + 0.36)) < 0.008, "extrapolation clamps at 60 s like SDRangel, got " + out.lon);
+  const single = { lat: 1, lon: 2 };
+  api.updateMotion2d(single);
+  out = api.extrapolate2d(single);
+  assert(out.lat === 1 && out.lon === 2, "single-sample motion stays at the data position");
+}
+
+/* ---- v4.14: ingestAdsb records motion samples ---- */
+{
+  api.ingestAdsb({ mode: "ADSB-LIST", aircraft: [{ icao: "ABC123", lat: 51.5, lon: 7.4, altitude: 30000, flight: "TEST1" }] });
+  const r = api.records.adsb.ABC123;
+  assert(r && r.__motion2d && r.__motion2d.x1 === 7.4 && r.__motion2d.y1 === 51.5, "ingestAdsb feeds the 2D motion samples");
+  api.ingestAdsb({ mode: "ADSB-LIST", aircraft: [{ icao: "ABC123", lat: 51.51, lon: 7.42, altitude: 30100, flight: "TEST1" }] });
+  assert(r.__motion2d.x0 === 7.4 && r.__motion2d.x1 === 7.42, "second ADS-B fix extends the motion pair");
+}
+
+/* ---- v4.14: basemap catalogue (keyless satellite + styles) ---- */
+{
+  const maps = api.baseMaps;
+  for (const key of ["osm", "satellite", "satlabels", "topo", "street", "dark", "nautical"]) {
+    assert(maps[key], "basemap " + key + " exists");
+    assert(api.baseMapAvailable(key), "basemap " + key + " is available without an API key");
+  }
+  assert(maps.satellite.url.includes("server.arcgisonline.com"), "satellite uses the keyless Esri public endpoint");
+  assert(!maps.satellite.url.includes("?token="), "keyless satellite URL carries no token placeholder");
+  assert(maps.satlabels.overlay && maps.satlabels.overlay.includes("Boundaries_and_Places"), "satellite+labels overlay exists");
+  assert(api.baseMapTileUrl("satellite").includes("server.arcgisonline.com"), "tile url resolves for satellite");
+}
+
+/* ---- v4.14: motion ticker wiring (3D primitive glide) ---- */
+{
+  const calls = [];
+  window.setInterval = (fn) => { calls.push(fn); return 1; };
+  const fakePos = { x: 1, y: 2, z: 3 };
+  const matrixLog = [];
+  window.Cesium = {
+    JulianDate: { fromDate: () => "JT" },
+    Cartesian3: function () {},
+    Math: { toRadians: (d) => d * Math.PI / 180 },
+    HeadingPitchRoll: function (h, p, r) { this.h = h; this.p = p; this.r = r; },
+    Ellipsoid: { WGS84: {} },
+    Transforms: { headingPitchRollToFixedFrame: (pos, hpr) => { const m = { pos, hpr }; matrixLog.push(m); return m; } },
+    Matrix4: Object.assign(function () {}, { multiplyByScale: (frame) => frame })
+  };
+  const rec = {
+    win: { isConnected: true },
+    spec: { key: "adsb" },
+    viewer: { scene: { requestRender() {} } },
+    entities: { "adsb-ABC123": { position: { getValue: () => fakePos } } },
+    aircraftModels: { "adsb-ABC123": { model: { modelMatrix: null }, modelMatrix: null, cancelled: false } },
+    map2dMarkers: {},
+    follow: null
+  };
+  api.installMotionTicker(rec);
+  assert(calls.length === 1, "motion ticker installs exactly one interval");
+  calls[0]();
+  const entry = rec.aircraftModels["adsb-ABC123"];
+  assert(matrixLog.length >= 1, "ticker recomputed the primitive matrix");
+  assert(entry.model.modelMatrix === entry.modelMatrix && entry.model.modelMatrix.pos === fakePos,
+    "ticker drives the visible primitive from the live (extrapolated) position");
+}
+
+/* ---- v4.15: Whittaker-Eilers smoothing ---- */
+{
+  const trend = [];
+  for (let i = 0; i < 20; i++) trend.push(i * 0.01);
+  const noisy = trend.map((v, i) => v + (i % 2 ? 0.004 : -0.004));
+  const smoothed = api.whittaker(noisy, 4);
+  assert.strictEqual(smoothed.length, noisy.length, "whittaker keeps length");
+  let errBefore = 0, errAfter = 0;
+  for (let i = 0; i < trend.length; i++) {
+    errBefore += Math.abs(noisy[i] - trend[i]);
+    errAfter += Math.abs(smoothed[i] - trend[i]);
+  }
+  assert(errAfter < errBefore, "whittaker reduces deviation from the trend: " + errAfter + " < " + errBefore);
+  const pts = noisy.map((v, i) => ({ lat: 50 + v, lon: 7 + (i * 0.01), altitude: 1000 }));
+  const sp = api.smoothTrackPoints(pts, 4);
+  assert.strictEqual(sp.length, pts.length, "smoothTrackPoints keeps all points");
+  assert(Math.abs(sp[10].lat - (50 + trend[10])) < 0.01, "smoothed track stays close to the trend");
+  assert(api.whittaker([1, 2, 3], 4).length === 3, "short tracks pass through");
+}
+
+/* ---- v4.15: filters ---- */
+{
+  const rec = { id: "DLH123", flight: "DLH123", lat: 51.7, lon: 6.9 };
+  assert(api.recordPassesFilters("adsb", rec), "no filters: record passes");
+  api.windows.adsb = { prefs: { filterName: "DLH", filterDistance: 0 } };
+  assert(api.recordPassesFilters("adsb", rec), "name filter matches");
+  assert(!api.recordPassesFilters("adsb", { id: "X1", flight: "UAL9", lat: 51, lon: 7 }), "name filter rejects others");
+  api.windows.adsb = { prefs: { filterName: "", filterDistance: 25 } };
+  assert(api.recordPassesFilters("adsb", rec), "nearby record passes distance filter");
+  assert(!api.recordPassesFilters("adsb", { id: "X2", flight: "FAR1", lat: 48.1, lon: 11.5 }), "far record is filtered out");
+  api.windows.adsb = { prefs: {} };
+  assert(api.haversineKm(51.66, 6.97, 51.66, 6.97) === 0, "haversine zero at same point");
+  const d = api.haversineKm(51.66, 6.97, 51.22, 6.77);
+  assert(d > 30 && d < 80, "haversine Düsseldorf-ish distance plausible: " + d);
+}
+
+/* ---- v4.15: track modes + GIBS + panel ---- */
+{
+  const rec = { prefs: { tracks: true, groundTracks: "all" }, follow: null };
+  assert(api.trackShow(rec, { id: "A" }), "all: track shown");
+  rec.prefs.groundTracks = "selected";
+  assert(!api.trackShow(rec, { id: "A" }), "selected: only follow target");
+  rec.follow = { id: "A" };
+  assert(api.trackShow(rec, { id: "A" }), "selected: follow target shown");
+  rec.prefs.groundTracks = "off";
+  assert(!api.trackShow(rec, { id: "A" }), "off: hidden");
+  const url = api.gibsUrl("MODIS_Terra_CorrectedReflectance_TrueColor");
+  assert(url.includes("MODIS_Terra_CorrectedReflectance_TrueColor") && url.includes("GoogleMapsCompatible_Level8/{z}/{y}/{x}"),
+    "GIBS url uses z/y/x order: " + url);
+  const panel = api.layersPanelHtml();
+  for (const marker of ["3D-Gebäude", "3D-Gelände", "Sonnenlicht", "Regen-Radar", "Wolken", "NASA-Satellitenbild", "FXAA", "MSAA", "Bodenspuren", "Glättung", "Umkreis"]) {
+    assert(panel.includes(marker), "layers panel offers " + marker);
+  }
+}
+
+/* ---- v4.16: ships glide too + pursuit camera + target lock ---- */
+{
+  const calls = [];
+  window.setInterval = (fn) => { calls.push(fn); return 1; };
+  const fakePos = { x: 4, y: 5, z: 6 };
+  const matrixLog = [];
+  const setViews = [];
+  function FakeVec(x, y, z) { this.x = x; this.y = y; this.z = z; }
+  FakeVec.normalize = (a, b) => b;
+  FakeVec.subtract = (a, b, c) => c;
+  FakeVec.cross = (a, b, c) => c;
+  window.Cesium = {
+    JulianDate: { fromDate: () => "JT" },
+    Cartesian3: FakeVec,
+    Math: { toRadians: (d) => d * Math.PI / 180 },
+    HeadingPitchRoll: function (h, p, r) { this.h = h; this.p = p; this.r = r; },
+    Ellipsoid: { WGS84: { geodeticSurfaceNormal: (a, b) => b } },
+    Transforms: {
+      headingPitchRollToFixedFrame: (pos, hpr) => { const m = { pos, hpr }; matrixLog.push(m); return m; },
+      eastNorthUpToFixedFrame: () => ({})
+    },
+    Matrix4: Object.assign(function () {}, {
+      multiplyByScale: (frame) => frame,
+      multiplyByPoint: (m, v, r) => r
+    }),
+    Cartographic: { fromCartesian: () => ({ height: 10 }), toCartesian: () => {} },
+    Color: { fromCssColorString: () => ({}), YELLOW: {} }
+  };
+  api.records.ais.SHIP1 = {
+    id: "SHIP1", kind: "ais", kindName: "cargo", lat: 53.5, lon: 8.4, cogDeg: 90, sogKn: 12,
+    track: [], reports: 1, lastSeen: Date.now(), lastPositionAt: Date.now(), lengthM: 120
+  };
+  api.updateMotion2d(api.records.ais.SHIP1);
+  api.updateMotion2d(api.records.adsb.ABC123);
+  const rec = {
+    win: { isConnected: true, querySelector: () => null },
+    spec: { key: "ais" },
+    viewer: {
+      scene: { requestRender() {} },
+      camera: { setView: (opts) => setViews.push(opts) }
+    },
+    entities: {
+      "ais-SHIP1": { position: { getValue: () => fakePos } },
+      "adsb-ABC123": { position: { getValue: () => fakePos } }
+    },
+    aircraftModels: { "adsb-ABC123": { model: { modelMatrix: null }, modelMatrix: null, cancelled: false } },
+    shipModels: { "ais-SHIP1": { model: { modelMatrix: null }, modelMatrix: null, cancelled: false } },
+    map2dMarkers: {},
+    follow: { id: "SHIP1", kind: "ais", camHeading: 0, range: 2, yaw: 0, pitch: 28, preset: "behind", modelOffsetDeg: 0 },
+    prefs: {}
+  };
+  api.installMotionTicker(rec);
+  assert(calls.length === 1, "v4.16 ticker installs one interval");
+  calls[0]();
+  const ship = rec.shipModels["ais-SHIP1"];
+  const plane = rec.aircraftModels["adsb-ABC123"];
+  assert(ship.model.modelMatrix && ship.model.modelMatrix.pos === fakePos,
+    "ship primitive glides from the extrapolated live position");
+  assert(plane.model.modelMatrix && plane.model.modelMatrix.pos === fakePos,
+    "aircraft primitive still glides (not ships-only)");
+  assert(ship.model.silhouetteSize === 3, "pursued ship gets the target-lock silhouette");
+  assert(plane.model.silhouetteSize === 0, "unpursued aircraft has no silhouette");
+  assert(setViews.length >= 1, "pursuit camera re-aimed on the ticker");
+  const shipM = api.aisModelMatrix(api.records.ais.SHIP1, window.Cesium, 0, fakePos);
+  assert(shipM && shipM.pos === fakePos, "aisModelMatrix accepts a live position override");
+}
+
+/* ---- v4.17: movement-only samples — A-to-B travel is not frozen ---- */
+{
+  function StubProp() { this.samples = []; this.forwardExtrapolationType = 0; this.forwardExtrapolationDuration = 0; }
+  StubProp.prototype.addSample = function (t, v) { this.samples.push({ t: t, v: v }); };
+  StubProp.prototype.setInterpolationOptions = function () {};
+  StubProp.prototype.getValue = function () { return this.samples.length ? this.samples[this.samples.length - 1].v : undefined; };
+  const C = window.Cesium;
+  C.SampledPositionProperty = StubProp;
+  C.ExtrapolationType = { HOLD: 0, EXTRAPOLATE: 1 };
+  C.LinearApproximation = {};
+  const rec = { id: "M1", lat: 52.5, lon: 13.4, altitudeM: 10000, lastPositionAt: Date.now() };
+  api.addPositionSample(rec, { x: 1 }, C);
+  // repeated list broadcasts: same position, later timestamps, altitude jitter
+  rec.lastPositionAt += 3000; rec.altitudeM = 10012;
+  api.addPositionSample(rec, { x: 1 }, C);
+  rec.lastPositionAt += 3000;
+  api.addPositionSample(rec, { x: 1 }, C);
+  assert.strictEqual(rec.__posProp.samples.length, 1,
+    "re-batches must not add samples (they would zero the velocity and freeze A-to-B motion)");
+  assert.strictEqual(rec.__posSamples, 1, "movement counter ignores standing still");
+  // real move: 0.03 deg ~ 2 km
+  rec.lon = 13.43; rec.lastPositionAt += 5000;
+  api.addPositionSample(rec, { x: 2 }, C);
+  assert.strictEqual(rec.__posProp.samples.length, 2, "a real move adds exactly one sample");
+  assert.strictEqual(rec.__posProp.forwardExtrapolationType, 1, "extrapolation engages after two distinct fixes");
+  assert.strictEqual(rec.__posProp.forwardExtrapolationDuration, 60, "60 s SDRangel window");
+  // more re-batches after the move must keep the velocity pair intact
+  rec.lastPositionAt += 4000;
+  api.addPositionSample(rec, { x: 2 }, C);
+  rec.altitudeM = 10020; rec.lastPositionAt += 4000;
+  api.addPositionSample(rec, { x: 2 }, C);
+  assert.strictEqual(rec.__posProp.samples.length, 2, "re-batches after a move keep exactly the two moving samples");
+  // sub-3 m jitter ignored
+  rec.lon = 13.430001; rec.lastPositionAt += 2000;
+  api.addPositionSample(rec, { x: 2 }, C);
+  assert.strictEqual(rec.__posProp.samples.length, 2, "sub-3 m jitter is ignored");
+  // 2D pair has the same tolerance
+  const r2 = { id: "M2", lat: 52.5, lon: 13.4 };
+  api.updateMotion2d(r2);
+  r2.lon = 13.400001;
+  api.updateMotion2d(r2);
+  assert.strictEqual(r2.__motion2d.t0, r2.__motion2d.t1, "2D: sub-3 m wobble does not start a new motion pair");
+  r2.lon = 13.43;
+  api.updateMotion2d(r2);
+  assert(r2.__motion2d.x0 === 13.4 && r2.__motion2d.x1 === 13.43, "2D: real move updates the pair");
+}

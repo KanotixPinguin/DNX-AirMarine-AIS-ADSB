@@ -1,0 +1,186 @@
+{
+  "source_repositories": [
+    "https://github.com/amvlab/aircraft-models",
+    "https://github.com/srcejon/sdrangel-3d-models"
+  ],
+  "amvlab_commit": "91d835e8e851b2317fe79af291c9fed6153fd525",
+  "sdrangel_commit": "59d1ee24ebc2c24343afb54b26928f965a625140",
+  "license": "CC BY 4.0 for all included aircraft GLBs",
+  "license_url": "https://creativecommons.org/licenses/by/4.0/",
+  "fallback_model": "receiver-local models/aircraft/Cesium_Air.glb (Apache 2.0, Cesium SampleData); kept for unknown types and load failures, not redistributed here",
+  "assets": [
+    {
+      "key": "a320",
+      "file": "A320_nologo.glb",
+      "title": "A320 (logo-free variant)",
+      "author": "amvlab",
+      "model_url": "https://github.com/amvlab/aircraft-models",
+      "source_url": "https://raw.githubusercontent.com/amvlab/aircraft-models/91d835e8e851b2317fe79af291c9fed6153fd525/models/A320_nologo.glb",
+      "runtime_scale": 1.0,
+      "forward_axis": "X",
+      "bounds_xyz_m_after_node_transforms_scaled": [
+        37.681,
+        11.322,
+        35.479
+      ],
+      "bytes": 250472,
+      "sha256": "08cc60caafe3d0937f3e12e72c28bcb96dfdb39763ac124bcd4da8adaea11ab9"
+    },
+    {
+      "key": "a350",
+      "file": "A350_nologo.glb",
+      "title": "A350 (logo-free variant)",
+      "author": "amvlab",
+      "model_url": "https://github.com/amvlab/aircraft-models",
+      "source_url": "https://raw.githubusercontent.com/amvlab/aircraft-models/91d835e8e851b2317fe79af291c9fed6153fd525/models/A350_nologo.glb",
+      "runtime_scale": 1.0,
+      "forward_axis": "X",
+      "bounds_xyz_m_after_node_transforms_scaled": [
+        67.412,
+        17.191,
+        67.471
+      ],
+      "bytes": 221828,
+      "sha256": "d91061ecff300c4e8951b571a476d6fcacd4d50dceb8e1d9a80cde7fa86b19f5"
+    },
+    {
+      "key": "a380",
+      "file": "A380_nologo.glb",
+      "title": "A380 (logo-free variant)",
+      "author": "amvlab",
+      "model_url": "https://github.com/amvlab/aircraft-models",
+      "source_url": "https://raw.githubusercontent.com/amvlab/aircraft-models/91d835e8e851b2317fe79af291c9fed6153fd525/models/A380_nologo.glb",
+      "runtime_scale": 0.42,
+      "forward_axis": "X",
+      "bounds_xyz_m_after_node_transforms_scaled": [
+        73.899,
+        22.276,
+        80.424
+      ],
+      "bytes": 239072,
+      "sha256": "785045c8467e8db10ba3b89a01a2d3c0184669b977964487a3a57825fa7c4619"
+    },
+    {
+      "key": "b737",
+      "file": "B737_nologo.glb",
+      "title": "B737 (logo-free variant)",
+      "author": "amvlab",
+      "model_url": "https://github.com/amvlab/aircraft-models",
+      "source_url": "https://raw.githubusercontent.com/amvlab/aircraft-models/91d835e8e851b2317fe79af291c9fed6153fd525/models/B737_nologo.glb",
+      "runtime_scale": 1.0,
+      "forward_axis": "X",
+      "bounds_xyz_m_after_node_transforms_scaled": [
+        37.872,
+        11.88,
+        35.737
+      ],
+      "bytes": 174108,
+      "sha256": "fa1f96261ac9e29d0c7c9ce239fde72f1109029527e1540794e237d581435d2d"
+    },
+    {
+      "key": "b787",
+      "file": "B787_nologo.glb",
+      "title": "B787 (logo-free variant)",
+      "author": "amvlab",
+      "model_url": "https://github.com/amvlab/aircraft-models",
+      "source_url": "https://raw.githubusercontent.com/amvlab/aircraft-models/91d835e8e851b2317fe79af291c9fed6153fd525/models/B787_nologo.glb",
+      "runtime_scale": 1.0,
+      "forward_axis": "X",
+      "bounds_xyz_m_after_node_transforms_scaled": [
+        56.582,
+        16.324,
+        58.005
+      ],
+      "bytes": 200652,
+      "sha256": "3d7e235d73f071fee1c93bd751fc537416cac26540152464bd584133f0afc2d8"
+    },
+    {
+      "key": "evtol",
+      "file": "EVTOL_nologo.glb",
+      "title": "eVTOL (logo-free variant)",
+      "author": "amvlab",
+      "model_url": "https://github.com/amvlab/aircraft-models",
+      "source_url": "https://raw.githubusercontent.com/amvlab/aircraft-models/91d835e8e851b2317fe79af291c9fed6153fd525/models/EVTOL_nologo.glb",
+      "runtime_scale": 5.0,
+      "forward_axis": "X",
+      "bounds_xyz_m_after_node_transforms_scaled": [
+        5.12,
+        1.96,
+        7.08
+      ],
+      "bytes": 188348,
+      "sha256": "5709e70ca87e41798c9b4e3ef7e23ccd1f3e6bf06a1636ede1a9fb8bc0500d99"
+    },
+    {
+      "key": "drone",
+      "file": "drone_nologo.glb",
+      "title": "Drone (logo-free variant)",
+      "author": "amvlab",
+      "model_url": "https://github.com/amvlab/aircraft-models",
+      "source_url": "https://raw.githubusercontent.com/amvlab/aircraft-models/91d835e8e851b2317fe79af291c9fed6153fd525/models/drone_nologo.glb",
+      "runtime_scale": 1.0,
+      "forward_axis": "X",
+      "bounds_xyz_m_after_node_transforms_scaled": [
+        0.824,
+        0.368,
+        0.655
+      ],
+      "bytes": 200704,
+      "sha256": "b3b1089986443bec395c57852c68e1dbf5bf990e28472656d9b9ad6c377931d1"
+    },
+    {
+      "key": "helicopter",
+      "file": "helicopter.glb",
+      "title": "Helicopter",
+      "author": "Gigantic Burger",
+      "model_uid_url": "https://skfb.ly/6XBwS",
+      "model_url": "https://skfb.ly/6XBwS",
+      "source_url": "https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/59d1ee24ebc2c24343afb54b26928f965a625140/helicopter.glb",
+      "runtime_scale": 1.0,
+      "forward_axis": "Z",
+      "bounds_xyz_m_after_node_transforms_scaled": [
+        16.512,
+        6.336,
+        19.909
+      ],
+      "bytes": 2214424,
+      "sha256": "cf93bc4c874e6ead912456bbe64c108570aa300d37967a452388fbf217962e3f"
+    },
+    {
+      "key": "glider",
+      "file": "glider.glb",
+      "title": "ASK 21 Mi",
+      "author": "helijah",
+      "model_uid_url": "https://skfb.ly/S9LQ",
+      "model_url": "https://skfb.ly/S9LQ",
+      "source_url": "https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/59d1ee24ebc2c24343afb54b26928f965a625140/glider.glb",
+      "runtime_scale": 1.0,
+      "forward_axis": "Z",
+      "bounds_xyz_m_after_node_transforms_scaled": [
+        17.014,
+        2.374,
+        8.336
+      ],
+      "bytes": 2487768,
+      "sha256": "c78e0c051979d274b538c362da584c5bf9c54698a5627c75a837bda08b4ac001"
+    },
+    {
+      "key": "f15",
+      "file": "f15.glb",
+      "title": "McDonnell Douglas F-15 Eagle",
+      "author": "PolyDucky",
+      "model_uid_url": "https://skfb.ly/6QWGp",
+      "model_url": "https://skfb.ly/6QWGp",
+      "source_url": "https://raw.githubusercontent.com/srcejon/sdrangel-3d-models/59d1ee24ebc2c24343afb54b26928f965a625140/f15.glb",
+      "runtime_scale": 1.0,
+      "forward_axis": "Z",
+      "bounds_xyz_m_after_node_transforms_scaled": [
+        14.461,
+        5.294,
+        21.94
+      ],
+      "bytes": 461800,
+      "sha256": "75e44900eb7c2cc6847c0572a139a95a44d499742bd5f048fd508f8e6047c6fa"
+    }
+  ]
+}

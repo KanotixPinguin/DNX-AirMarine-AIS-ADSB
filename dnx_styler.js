@@ -1,44 +1,3 @@
-/* [DNX-BASIS-1] Adresse des Konten-Dienstes automatisch ermitteln. */
-(function(){
-  if(window.__dnxBasis) return;
-  var KANDIDATEN = ["8091","8096","8094","8098","8099"];
-  var SCHLUESSEL = "dnx.access.basis";
-  window.__dnxBasis = function(){
-    var p = null;
-    try{ p = localStorage.getItem(SCHLUESSEL); }catch(e){}
-    return "http://" + location.hostname + ":" + (p || KANDIDATEN[0]);
-  };
-  function merken(port){
-    try{ if(localStorage.getItem(SCHLUESSEL) !== port) localStorage.setItem(SCHLUESSEL, port); }catch(e){}
-    try{ window.dispatchEvent(new CustomEvent("dnx:basis", { detail: "http://" + location.hostname + ":" + port })); }catch(e){}
-  }
-  function pruefen(){
-    var gemerkt = null;
-    try{ gemerkt = localStorage.getItem(SCHLUESSEL); }catch(e){}
-    var liste = gemerkt ? [gemerkt].concat(KANDIDATEN) : KANDIDATEN;
-    var i = 0;
-    function naechster(){
-      if(i >= liste.length) return;
-      var port = liste[i++];
-      var erledigt = false;
-      var zeit = setTimeout(function(){ if(!erledigt){ erledigt = true; naechster(); } }, 1500);
-      fetch("http://" + location.hostname + ":" + port + "/api/live",
-            { credentials: "include", cache: "no-store" })
-        .then(function(r){ return r.json().catch(function(){ return null; }); })
-        .then(function(j){
-          if(erledigt) return;
-          erledigt = true; clearTimeout(zeit);
-          if(j && typeof j === "object" && ("ok" in j)) merken(port);
-          else naechster();
-        })
-        .catch(function(){ if(erledigt) return; erledigt = true; clearTimeout(zeit); naechster(); });
-    }
-    naechster();
-  }
-  if(document.readyState === "loading") document.addEventListener("DOMContentLoaded", pruefen, {once:true});
-  else pruefen();
-})();
-
 (async function () {
 // AUS: // AUS:   async function lp(n){ try{ if(window.Plugins && Plugins.load) await Plugins.load(n); }catch(e){} }
 // AUS: await lp("utils");   /* v55: Funktion ist abgeschaltet, der Aufruf warf "lp is not defined" */
@@ -107,10 +66,8 @@
       c.style.setProperty("display","block","important");
       var mobile = !!(window.__dnxIsMobileLayout && window.__dnxIsMobileLayout());
       if(!mobile){
-        if(!window.__dnxDescHoeheAktiv){
-          c.style.setProperty("max-height","none","important");
-          c.style.setProperty("height","auto","important");
-        }
+        c.style.setProperty("max-height","none","important");
+        c.style.setProperty("height","auto","important");
       }
       c.style.setProperty("visibility","visible","important");
       c.style.setProperty("opacity","1","important");
@@ -175,17 +132,9 @@
       box.style.setProperty("opacity","1","important");
       var mobile = !!(window.__dnxIsMobileLayout && window.__dnxIsMobileLayout());
       if(!mobile){
-        if(!window.__dnxDescHoeheAktiv){
-          box.style.setProperty("max-height","none","important");
-          box.style.setProperty("height","auto","important");
-          box.style.setProperty("overflow","visible","important");
-        } else {
-          /* v6.15: die Hoehe ist begrenzt - also MUSS der Inhalt scrollbar sein,
-             sonst ist z. B. das VNC unten abgeschnitten und nicht erreichbar */
-          box.style.setProperty("overflow-x","hidden","important");
-          box.style.setProperty("overflow-y","auto","important");
-          box.style.setProperty("overscroll-behavior","contain","important");
-        }
+        box.style.setProperty("max-height","none","important");
+        box.style.setProperty("height","auto","important");
+        box.style.setProperty("overflow","visible","important");
       }
     }
 
@@ -245,16 +194,9 @@
     c.style.setProperty("display","block","important");
     c.style.setProperty("visibility","visible","important");
     c.style.setProperty("opacity","1","important");
-    if(!window.__dnxDescHoeheAktiv){
-      c.style.setProperty("max-height","none","important");
-      c.style.setProperty("height","auto","important");
-      c.style.setProperty("overflow","visible","important");
-    } else {
-      /* v6.15: begrenzte Hoehe + scrollbarer Inhalt (VNC, Bilder, Texte) */
-      c.style.setProperty("overflow-x","hidden","important");
-      c.style.setProperty("overflow-y","auto","important");
-      c.style.setProperty("overscroll-behavior","contain","important");
-    }
+    c.style.setProperty("max-height","none","important");
+    c.style.setProperty("height","auto","important");
+    c.style.setProperty("overflow","visible","important");
 
     var a = arrow();
     if(a){
@@ -591,9 +533,13 @@ setInterval(function(){
         const on = getter();
         b.textContent = label + ': ' + (on ? 'On' : 'Off');
         b.style.setProperty('border', '1px solid #ffffff', 'important');
-        /* v3.84: einheitliche Farben (an = cyan, aus = grau) */
-        b.style.setProperty('background', on ? '#1f8f52' : '#666666', 'important');
-        b.style.setProperty('color', on ? '#f2fff8' : '#ffffff', 'important');
+        if (label === 'Gelb Hover') {
+          b.style.setProperty('background', on ? '#ffd400' : '#666666', 'important');
+          b.style.setProperty('color', on ? '#000000' : '#ffffff', 'important');
+        } else {
+          b.style.setProperty('background', on ? '#22ff2f' : '#666666', 'important');
+          b.style.setProperty('color', on ? '#000000' : '#ffffff', 'important');
+        }
       }
       b.addEventListener('click', function(){
         setter(!getter());
@@ -1195,12 +1141,6 @@ setInterval(function(){
  },true);
  
 })();
-/* v3.85: DNX-Empfaenger-Fenster (Overlay) startet ZU - bei jedem Laden.
-   Wer es waehrend der Sitzung oeffnet, behaelt es bis zum naechsten Start. */
-(function(){
-  try{ localStorage.setItem("dnx.receiver.overlay.visible", "0"); }catch(e){}
-  try{ localStorage.setItem("dnx.status.visible", "0"); }catch(e){}
-})();
 /* dnx_overlay_test disabled: local file missing */
 
 /* DNX_RECEIVER_OVERLAY_START */
@@ -1551,16 +1491,6 @@ setInterval(function(){
 })();
 /* DNX_FXBOX_FIX_END */
 
-/* DNX_PEGEL_START
-   v3.97: gemeinsame Lautstaerke-Kennlinie fuer alle Toene.
-   100 % ist jetzt wirklich laut (vorher wurde mit 0.12 multipliziert). */
-window.__dnxPegel = window.__dnxPegel || function(prozent){
-  var p = Math.max(0, Math.min(100, prozent || 0)) / 100;
-  if(p <= 0){ return 0; }
-  return Math.min(0.95, Math.pow(p, 0.7) * 0.85);
-};
-/* DNX_PEGEL_END */
-
 /* DNX_FXBOX_INLINE_START */
 (function(){
   if(window.__dnxFxInline) return;
@@ -1569,26 +1499,12 @@ window.__dnxPegel = window.__dnxPegel || function(prozent){
   var BOX_ID = "dnx-fx-box-inline";
   var STORE = "dnx_fx_state_v2";
 
-  /* v3.92: FX/Pip ist die einzige Ton-Einstellung und startet auf 100 %.
-     Einmalige Umstellung: alte gespeicherte Werte (z. B. 18 %) werden auf
-     100 % gehoben, damit es sofort hoerbar ist. */
-  var VOL100_FLAG = "dnx_fx_vol100_v2";
   function loadState(){
-    var st;
     try{
-      st = Object.assign({vol:100,pitch:100,len:80,sound:"Soft",mute:false,collapsed:false},
-                         JSON.parse(localStorage.getItem(STORE) || "{}"));
+      return Object.assign({vol:18,pitch:100,len:80,sound:"Soft",mute:false,collapsed:false}, JSON.parse(localStorage.getItem(STORE) || "{}"));
     }catch(e){
-      st = {vol:100,pitch:100,len:80,sound:"Soft",mute:false,collapsed:false};
+      return {vol:18,pitch:100,len:80,sound:"Soft",mute:false,collapsed:false};
     }
-    try{
-      if(localStorage.getItem(VOL100_FLAG) !== "1"){
-        st.vol = 100;
-        localStorage.setItem(VOL100_FLAG, "1");
-        saveState(st);
-      }
-    }catch(e){}
-    return st;
   }
 
   function saveState(state){
@@ -1612,7 +1528,7 @@ window.__dnxPegel = window.__dnxPegel || function(prozent){
 
       osc.type = type;
       osc.frequency.value = Math.max(80, base * (state.pitch/100));
-      gain.gain.value = (window.__dnxPegel ? window.__dnxPegel(state.vol) : 0.3);
+      gain.gain.value = Math.max(0, Math.min(1, state.vol/100)) * 0.12;
 
       osc.connect(gain);
       gain.connect(ctx.destination);
@@ -1919,9 +1835,9 @@ window.__dnxPegel = window.__dnxPegel || function(prozent){
 
   function loadState(){
     try{
-      return Object.assign({vol:100,pitch:100,len:80,sound:"Soft",mute:false}, JSON.parse(localStorage.getItem(STORE) || "{}"));
+      return Object.assign({vol:18,pitch:100,len:80,sound:"Soft",mute:false}, JSON.parse(localStorage.getItem(STORE) || "{}"));
     }catch(e){
-      return {vol:100,pitch:100,len:80,sound:"Soft",mute:false};
+      return {vol:18,pitch:100,len:80,sound:"Soft",mute:false};
     }
   }
 
@@ -1942,7 +1858,7 @@ window.__dnxPegel = window.__dnxPegel || function(prozent){
 
       osc.type = type;
       osc.frequency.value = Math.max(80, base * (state.pitch/100));
-      gain.gain.value = (window.__dnxPegel ? window.__dnxPegel(state.vol) : 0.3);
+      gain.gain.value = Math.max(0, Math.min(1, state.vol/100)) * 0.12;
 
       osc.connect(gain);
       gain.connect(ctx.destination);
@@ -1991,7 +1907,6 @@ window.__dnxPegel = window.__dnxPegel || function(prozent){
     receiver.dataset.dnxFxModeHook = "1";
 
     receiver.addEventListener("click", function(e){
-      if(e && e.isTrusted === false){ return; }      /* nur echte Klicks */
       var mode = modeFromTarget(e.target);
       if(!mode) return;
 
@@ -2001,9 +1916,6 @@ window.__dnxPegel = window.__dnxPegel || function(prozent){
 
       var st = loadState();
       updateStatus(mode);
-      /* v3.90: der allgemeine Klick-Ton hat gerade schon gepipt - nicht doppelt */
-      if(now - (window.__dnxSndKlick || 0) < 150){ return; }
-      window.__dnxSndZuletzt = Date.now();
       beep(st);
     }, true);
   }
@@ -3060,15 +2972,8 @@ window.__dnxPegel = window.__dnxPegel || function(prozent){
     style.id = STYLE_ID;
     style.textContent = [
       DESC_SELECTOR + "[" + DESC_MARKER_ATTR + "] {",
-      "  box-sizing: border-box !important;",
-      "  overscroll-behavior: contain !important;",
-      "  scrollbar-width: thin;",
-      "  scrollbar-color: rgba(50,255,120,.55) rgba(0,0,0,.35);",
+      "  overflow: hidden !important;",
       "}",
-      DESC_SELECTOR + "[" + DESC_MARKER_ATTR + "]::-webkit-scrollbar { width: 11px; height: 11px; }",
-      DESC_SELECTOR + "[" + DESC_MARKER_ATTR + "]::-webkit-scrollbar-track { background: rgba(0,0,0,.35); border-radius: 6px; }",
-      DESC_SELECTOR + "[" + DESC_MARKER_ATTR + "]::-webkit-scrollbar-thumb { background: rgba(50,255,120,.55); border-radius: 6px; border: 2px solid rgba(0,0,0,.35); }",
-      DESC_SELECTOR + "[" + DESC_MARKER_ATTR + "]::-webkit-scrollbar-thumb:hover { background: rgba(80,255,150,.85); }",
       DESC_SELECTOR + "[" + DESC_MARKER_ATTR + "].expanded {",
       "  transition: none !important;",
       "}",
@@ -3118,9 +3023,7 @@ window.__dnxPegel = window.__dnxPegel || function(prozent){
   }
 
   function clampHeight(height) {
-    /* v3.96: hoechstens 32 % der Fensterhoehe - vorher waren 75 % erlaubt,
-       dadurch blieb fuer Spektrum und Wasserfall fast kein Platz uebrig. */
-    var maxHeight = Math.max(MIN_HEIGHT, Math.floor(window.innerHeight * 0.32));
+    var maxHeight = Math.max(MIN_HEIGHT, Math.floor(window.innerHeight * 0.75));
     return Math.max(MIN_HEIGHT, Math.min(maxHeight, height));
   }
 
@@ -3136,20 +3039,10 @@ window.__dnxPegel = window.__dnxPegel || function(prozent){
   }
 
   function applyHeight(desc, height) {
-    /* v6.3: ab jetzt verwaltet diese Stelle die Hoehe der Beschreibung.
-       Die alten Auto-Oeffnen-Bloecke duerfen dann nicht mehr mit
-       max-height:none/height:auto dazwischenfunken - sonst springt der
-       obere Bereich (und mit ihm Wasserfall, Skala und 3D) mehrfach. */
-    window.__dnxDescHoeheAktiv = true;
     var clamped = clampHeight(height);
     state.height = clamped;
     desc.style.height = Math.round(clamped) + "px";
     desc.style.maxHeight = Math.round(clamped) + "px";
-    /* v6.15: weil die Hoehe hier begrenzt wird, sorgt auto dafuer, dass man
-       den Rest (VNC 1 / VNC 2, Fotos, Texte) scrollend erreichen kann */
-    desc.style.overflowX = "hidden";
-    desc.style.overflowY = "auto";
-    desc.style.overscrollBehavior = "contain";
     if (isMobileLayout()) {
       state.mobileExpanded = clamped > mobileDefaultHeight() + 18;
       var details = desc.querySelector(".webrx-rx-photo-desc");
@@ -3392,8 +3285,7 @@ window.__dnxPegel = window.__dnxPegel || function(prozent){
 (function(){})();
  /* DNX_ARROW_TOGGLE_FIX_END */
 
-/* v6.3: doppelten Lader entfernt - plugin.js wird nur noch im Block
-   DNX_WATERFALL_3D_LOADER geladen (sonst "dnx_3dtool is already loaded"). */
+(function(){var s=document.createElement("script");s.src="/static/plugins/receiver/dnx_3dtool/plugin.js?v=FINAL_ONLY_2026-05-01";document.head.appendChild(s);})();
 
 // 3D waterfall (SDRangel port) — dnx_3dtool
 Plugins.load("dnx_3dtool");
@@ -3927,16 +3819,6 @@ Plugins.load("dnx_3dtool");
       '  </div>',
       '</div>'
     ].join("");
-
-    /* v3.92: Es gibt nur EINE Ton-Einstellung - die FX/Pip-Box unten.
-       Die Lautstaerke- und Sound-Zeile in diesem Panel wird deshalb
-       ausgeblendet (die Technik dahinter bleibt unveraendert erhalten). */
-    try{
-      var audioZeilen = box.querySelectorAll(".dnx-visitor-audio-settings");
-      for(var az = 0; az < audioZeilen.length; az++){
-        audioZeilen[az].style.display = "none";
-      }
-    }catch(e){}
 
     /*
      * Titelzeile mit Auf-/Zu-Pfeil erzeugen. Der vorhandene
@@ -5414,7 +5296,7 @@ function showScreenOverlay(
       /* DNX_SAFE_USER_FREQUENCY_COLUMNS */
       #dnx-safe-user-table{
         width:100%;
-        min-width:810px;
+        min-width:590px;
         border-collapse:collapse;
         table-layout:fixed;
         color:#fff;
@@ -5471,23 +5353,6 @@ function showScreenOverlay(
 
       #dnx-safe-user-table .dnx-col-connection{
         width:90px;
-      }
-
-      /* [DNX-IP-1] IP-Adresse */
-      #dnx-safe-user-table .dnx-col-ip{
-        width:92px;
-        color:#c9e7ff;
-        font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-        font-size:9px;
-      }
-
-      /* [DNX-MARKER-SPALTE] Bezeichnung des Markers */
-      #dnx-safe-user-table .dnx-col-marker{
-        width:130px;
-        color:#ffd9a0;
-        font-weight:900;
-        overflow:hidden;
-        text-overflow:ellipsis;
       }
 
       #dnx-safe-user-table
@@ -5876,14 +5741,8 @@ function showScreenOverlay(
       : [];
 
     sessions = sessions.map(function(session, index){
-      /* [DNX-IP-2] beide Schreibweisen verstehen (alt und neu). */
       var duplicateCount =
-        parseInt(
-          session.duplicate_count !== undefined
-            ? session.duplicate_count
-            : session.duplicateCount,
-          10
-        );
+        parseInt(session.duplicate_count, 10);
 
       if(
         !Number.isFinite(duplicateCount) ||
@@ -5904,13 +5763,10 @@ function showScreenOverlay(
         name:publicName(session.name),
         profile:compactProfile(session.profile),
         frequency:formatFrequency(session.frequency),
-        frequencyRaw:parseInt(session.frequency, 10) || 0,
         mode:normalizeMode(session.mode),
         duplicate:!!session.duplicate,
         duplicateCount:duplicateCount,
-        group:group,
-        ip:String(session.ip || ""),
-        role:String(session.role || "")
+        group:group
       };
     });
 
@@ -5969,11 +5825,9 @@ function showScreenOverlay(
       [
         ["Nr.","dnx-col-number"],
         ["Name","dnx-col-name"],
-        ["IP","dnx-col-ip"],
         ["Profil","dnx-col-profile"],
         ["Frequenz","dnx-col-frequency"],
         ["Modus","dnx-col-mode"],
-        ["Marker","dnx-col-marker"],
         ["Status","dnx-col-connection"]
       ].forEach(function(column){
         var th = document.createElement("th");
@@ -6031,7 +5885,6 @@ function showScreenOverlay(
       [
         ["Nr.","dnx-screen-col-number"],
         ["Name","dnx-screen-col-name"],
-        ["IP","dnx-screen-col-ip"],
         ["Profil",""],
         ["Frequenz","dnx-screen-col-frequency"],
         ["Modus","dnx-screen-col-mode"],
@@ -6097,72 +5950,7 @@ function showScreenOverlay(
     return "Einzeln";
   }
 
-    /* [DNX-MARKER-SPALTE] Bezeichnung des Markers unter der Frequenz. */
-  var MARKER_TOLERANZ = 12000;                 /* Hz - halber Kanalabstand reicht */
-  function markerKandidaten(){
-    var liste = [];
-    function nimm(name, freq){
-      var fz = Number(freq);
-      if(!fz || !isFinite(fz)) return;
-      var nm = String(name === undefined || name === null ? "" : name).trim();
-      if(!nm) return;
-      liste.push({ name: nm, frequency: fz });
-    }
-    try{
-      var m = (typeof window !== "undefined") ? window.DNXScannerManager : null;
-      if(m && typeof m.getFavorites === "function"){
-        (m.getFavorites() || []).forEach(function(f){
-          if(f) nimm(f.name, f.frequency);
-        });
-      }
-    }catch(eF){}
-    try{
-      var bm = (typeof bookmarks !== "undefined") ? bookmarks : null;
-      if(bm && bm.bookmarks){
-        Object.keys(bm.bookmarks).forEach(function(q){
-          (bm.bookmarks[q] || []).forEach(function(b){
-            if(b) nimm(b.name || b.label || b.title || b.text, b.frequency);
-          });
-        });
-      }
-    }catch(eB){}
-    return liste;
-  }
-  function freqZahl(wert){
-    if(typeof wert === "number" && isFinite(wert)) return wert;
-    var t = String(wert === undefined || wert === null ? "" : wert).trim();
-    if(!t) return 0;
-    var faktor = 1;
-    if(/ghz/i.test(t)) faktor = 1000000000;
-    else if(/mhz/i.test(t)) faktor = 1000000;
-    else if(/khz/i.test(t)) faktor = 1000;
-    var ziffern = t.replace(/[^0-9.,\-]/g, "");
-    if(!ziffern) return 0;
-    if(ziffern.indexOf(",") >= 0){
-      ziffern = ziffern.replace(/\./g, "").replace(",", ".");
-    }else{
-      ziffern = ziffern.replace(/\./g, "");
-    }
-    var z = parseFloat(ziffern);
-    if(!isFinite(z)) return 0;
-    return z * faktor;
-  }
-  /* [DNX-MARKER-SPALTE2] Textsichere Umwandlung. */
-  function markerZu(freq){
-    var f = freqZahl(freq);
-    if(!f || !isFinite(f)) return "";
-    var liste = markerKandidaten();
-    if(!liste.length) return "";
-    var treffer = "", abstand = Infinity;
-    for(var i = 0; i < liste.length; i++){
-      var d = Math.abs(liste[i].frequency - f);
-      if(d <= MARKER_TOLERANZ && d < abstand){ abstand = d; treffer = liste[i].name; }
-    }
-    return treffer;
-  }
-
-function renderReceiver(data){
-    try{ window.__dnxMarkerZu = markerZu; }catch(eMZ){}
+  function renderReceiver(data){
     var wrap = ensureReceiverTable();
     if(!wrap) return;
 
@@ -6190,29 +5978,15 @@ function renderReceiver(data){
         "dnx-col-number"
       );
 
-      /* [DNX-IP-1] Name kommt als Text oder als Objekt - beides geht. */
-      var nm = session.name;
-      if(nm && typeof nm === "object"){ nm = nm.text; }
-      if(nm === undefined || nm === null || String(nm).trim() === ""){ nm = "Gast"; }
-      var bekannt = !!(session.name && session.name.known);
-
       appendCell(
         row,
-        String(nm),
+        session.name.text,
         "dnx-col-name " +
         (
-          bekannt
+          session.name.known
             ? "dnx-user-name-real"
             : "dnx-user-name-unknown"
         )
-      );
-
-      /* [DNX-IP-1] IP-Adresse */
-      appendCell(
-        row,
-        String(session.ip || "-"),
-        "dnx-col-ip",
-        String(session.ip || "-")
       );
 
       appendCell(
@@ -6236,18 +6010,7 @@ function renderReceiver(data){
         session.mode
       );
 
-            /* [DNX-MARKER-SPALTE] Bezeichnung des Markers auf dieser Frequenz. */
-      var markerText = markerZu(
-        session.frequencyRaw || session.frequency
-      );
-      appendCell(
-        row,
-        markerText || "-",
-        "dnx-col-marker",
-        markerText ? ("Marker: " + markerText) : ""
-      );
-
-var statusCell = appendCell(
+      var statusCell = appendCell(
         row,
         "",
         "dnx-col-connection"
@@ -6267,7 +6030,7 @@ var statusCell = appendCell(
       var emptyRow = document.createElement("tr");
       var empty = document.createElement("td");
 
-      empty.colSpan = 8;
+      empty.colSpan = 6;
       empty.textContent = "Keine aktiven User";
       empty.style.textAlign = "center";
       empty.style.color = "#ffe788";
@@ -6299,19 +6062,10 @@ var statusCell = appendCell(
         "dnx-screen-col-number"
       );
 
-      /* [DNX-IP-1] Name als Text oder Objekt, danach die IP-Adresse. */
-      var nmB = session.name;
-      if(nmB && typeof nmB === "object"){ nmB = nmB.text; }
       appendCell(
         row,
-        String(nmB || "Gast"),
+        session.name.text,
         "dnx-screen-col-name"
-      );
-
-      appendCell(
-        row,
-        String(session.ip || "-"),
-        "dnx-screen-col-ip"
       );
 
       appendCell(
@@ -6664,7 +6418,7 @@ var statusCell = appendCell(
 
 
 /* DNX_PROJECT_MANAGER_START */
-(function(){if(window.__dnxProjectManagerButton)return;window.__dnxProjectManagerButton=true;function add(){var p=document.getElementById('openwebrx-panel-receiver');if(!p||document.getElementById('dnx-project-manager-button'))return;var b=document.createElement('button');b.id='dnx-project-manager-button';b.textContent='📦 Projekte / Downloads';b.style.cssText='width:100%;margin:5px 0 8px;padding:8px;border:1px solid #ffd84a;border-radius:8px;background:linear-gradient(90deg,#755000,#b77900);color:#fff;font-weight:900;cursor:pointer';b.onclick=function(){window.open('http://' + window.location.hostname + ':8092/','dnx-projects')};p.insertBefore(b,p.firstChild)}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',add,{once:true});else add();window.addEventListener('load',function(){setTimeout(add,500)})})();
+(function(){if(window.__dnxProjectManagerButton)return;window.__dnxProjectManagerButton=true;function add(){var p=document.getElementById('openwebrx-panel-receiver');if(!p||document.getElementById('dnx-project-manager-button'))return;var b=document.createElement('button');b.id='dnx-project-manager-button';b.textContent='📦 Projekte / Downloads';b.style.cssText='width:100%;margin:5px 0 8px;padding:8px;border:1px solid #ffd84a;border-radius:8px;background:linear-gradient(90deg,#755000,#b77900);color:#fff;font-weight:900;cursor:pointer';b.onclick=function(){window.open('http://' + window.location.hostname + ':8094/','dnx-projects')};p.insertBefore(b,p.firstChild)}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',add,{once:true});else add();window.addEventListener('load',function(){setTimeout(add,500)})})();
 /* DNX_PROJECT_MANAGER_END */
 
 /* DNX_WATERFALL_3D_LOADER_START */
@@ -6717,7 +6471,7 @@ var statusCell = appendCell(
 (function(){if(window.__dnxGraphicEqLoader)return;window.__dnxGraphicEqLoader=true;var B='/static/plugins/receiver/dnx_graphic_eq/';var c=document.createElement('link');c.rel='stylesheet';c.href=B+'dnx_eq.css';document.head.appendChild(c);var s=document.createElement('script');s.src=B+'dnx_eq.js';document.head.appendChild(s)})();
 /* DNX_GRAPHIC_EQ_END */
 /* DNX_ACCESS_CONTROL_STAGE2_START */
-(function(){if(window.__dnxAccessLoader)return;window.__dnxAccessLoader=true;var B='/static/plugins/receiver/dnx_access_control/';var c=document.createElement('link');c.rel='stylesheet';c.href=B+'dnx_access.css';document.head.appendChild(c);var s=document.createElement('script');s.src=B+'dnx_access.js?v=roles1.7.3';document.head.appendChild(s)})();
+(function(){if(window.__dnxAccessLoader)return;window.__dnxAccessLoader=true;var B='/static/plugins/receiver/dnx_access_control/';var c=document.createElement('link');c.rel='stylesheet';c.href=B+'dnx_access.css';document.head.appendChild(c);var s=document.createElement('script');s.src=B+'dnx_access.js';document.head.appendChild(s)})();
 /* DNX_ACCESS_CONTROL_STAGE2_END */
 
 /* DNX_VISITOR_ROLES_START */
@@ -6743,23 +6497,7 @@ function hz(v){v=Number(v);return Number.isFinite(v)?Math.round(v).toLocaleStrin
 function parseFreq(v){v=String(v).trim().replace(/,/g,".");let m=v.match(/^([0-9.]+)\s*(hz|khz|mhz)?$/i);if(!m)return NaN;let n=parseFloat(m[1]),u=(m[2]||"hz").toLowerCase();return Math.round(n*(u==="mhz"?1e6:u==="khz"?1e3:1))}
 function cat(id){return cats.find(x=>x.id===id)||cats[0]||defaults[0]}
 function tone(){try{let A=window.AudioContext||window.webkitAudioContext,c=new A,o=c.createOscillator(),g=c.createGain();o.frequency.value=1050;g.gain.value=.06;o.connect(g);g.connect(c.destination);o.start();g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+.18);o.stop(c.currentTime+.2)}catch(e){}}
-function fmMayControl(){if(window.DNXReceiverRights&&window.DNXReceiverRights.can("scanner"))return true;try{if(window.UI&&UI.showBubble)UI.showBubble("Anmeldung erforderlich – Scanner ist für Gäste gesperrt.");}catch(e){}return false;}
-function fmMayFavorite(){return !!(window.DNXReceiverRights&&window.DNXReceiverRights.can("favorites")&&window.DNXReceiverRights.can("tune"));}
-function fmMayOpen(){return !!(window.DNXReceiverRights&&(window.DNXReceiverRights.can("favorites")||window.DNXReceiverRights.can("scanner")));}
-function tune(f,fromScan){
- if(fromScan?!(fmMayControl()&&window.DNXReceiverRights.can("tune")):!fmMayFavorite())return false;
- if(!f||typeof UI==="undefined"||!UI.setFrequency)return false;
- var frequency=Number(f.frequency),range=currentProfileRange();
- if(!Number.isFinite(frequency))return false;
- if(range&&(frequency<range.min||frequency>range.max)){
-  var message="Favorit liegt außerhalb des aktuellen Profils ("+hz(range.min)+" bis "+hz(range.max)+"). "+(window.DNXReceiverRights.can("profile_switch")?"Bitte zuerst ein passendes Profil wählen.":"Gäste können nur innerhalb des aktuellen Profils abstimmen.");
-  status(message);if(UI.showBubble)UI.showBubble(message);return false;
- }
- if(f.mode&&UI.setModulation)UI.setModulation(f.mode,f.underlying||undefined);
- UI.setFrequency(frequency,false);
- if(UI.showBubble)UI.showBubble(`<b>${esc(f.icon||cat(f.category).icon)} ${esc(f.name)}</b><br>${hz(f.frequency)}`);
- return true;
-}
+function tune(f){if(typeof UI==="undefined"||!UI.setFrequency)return false;if(f.mode&&UI.setModulation)UI.setModulation(f.mode,f.underlying||undefined);UI.setFrequency(Number(f.frequency),false);if(UI.showBubble)UI.showBubble(`<b>${esc(f.icon||cat(f.category).icon)} ${esc(f.name)}</b><br>${hz(f.frequency)}`);return true}
 function smeter(){let e=document.getElementById("openwebrx-smeter-db")||document.querySelector("#openwebrx-smeter"),m=String(e?.textContent||"").match(/-?\d+(?:[.,]\d+)?/);return m?parseFloat(m[0].replace(",",".")):-999}
 function style(){if(document.getElementById("dnx-fm-style"))return;let s=document.createElement("style");s.id="dnx-fm-style";s.textContent=`
 #dnx-fm-launch{width:100%;margin:5px 0 8px;padding:7px;border:1px solid #3de7ff;border-radius:8px;background:linear-gradient(90deg,#075985,#0891b2);color:#fff;font-weight:900;cursor:pointer}
@@ -6830,7 +6568,7 @@ function style(){if(document.getElementById("dnx-fm-style"))return;let s=documen
 @keyframes dnxPulse{50%{filter:brightness(1.5);box-shadow:0 0 18px var(--c)}}@media(max-width:800px){#dnx-fm-window{left:1vw;top:1vh;width:98vw;height:98vh;min-width:0}.dnx-fm-body{grid-template-columns:1fr}.dnx-fm-side{max-height:45%;border-right:0;border-bottom:1px solid #ffffff22}.dnx-fm-col-griff{display:none}}
 `;document.head.appendChild(s)}
 function optionCats(sel){sel.innerHTML=cats.map(c=>`<option value="${esc(c.id)}">${esc(c.icon)} ${esc(c.name)}</option>`).join("")}
-function build(){style();let panel=document.getElementById("openwebrx-panel-receiver");if(panel&&!document.getElementById("dnx-fm-launch")){let b=document.createElement("button");b.id="dnx-fm-launch";b.textContent="📻 Favoriten / Scanner";b.onclick=open;panel.insertBefore(b,panel.firstChild)}if(document.getElementById("dnx-fm-window"))return;let w=document.createElement("div");w.id="dnx-fm-window";w.innerHTML=`
+function build(){style();let panel=document.getElementById("openwebrx-panel-receiver");if(panel&&!document.getElementById("dnx-fm-launch")){let b=document.createElement("button");b.id="dnx-fm-launch";b.textContent="📻 Scanner / Frequenz-Manager";b.onclick=open;panel.insertBefore(b,panel.firstChild)}if(document.getElementById("dnx-fm-window"))return;let w=document.createElement("div");w.id="dnx-fm-window";w.innerHTML=`
 <div class="dnx-fm-head"><b>📻 SDR Scanner & Frequenz-Manager · v3.99</b><span class="dnx-fm-zieh">⇔ mit linker Maustaste verschieben</span><button data-a="lupe" title="zum lebenden Wasserfall-Bild springen">📺 Live-Bild</button><button data-a="pop">Neuer Tab</button><button data-a="max">□</button><button data-a="close">✕</button></div><div class="dnx-fm-body"><aside class="dnx-fm-side">
 <div class="dnx-fm-section"><h3>Favorit anlegen</h3><div class="dnx-fm-grid"><label>Name</label><input id="fm-name"><label>Frequenz</label><input id="fm-freq" placeholder="145.500 MHz"><label>Modus</label><select id="fm-mode"><option>nfm</option><option>am</option><option>sam</option><option>usb</option><option>lsb</option><option>cw</option><option>dmr</option><option>dstar</option><option>ysf</option><option>tetra</option><option>p25</option><option>nxdn</option><option>m17</option><option>freedv</option><option>dab</option><option>drm</option></select><label>Kategorie</label><select id="fm-cat"></select><label>Icon</label><input id="fm-icon" value="★"><label>Farbe</label><input id="fm-color" type="color" value="#22c55e"><label>Form</label><select id="fm-shape"><option>Kreis</option><option>Quadrat</option><option>Raute</option><option>Stern</option><option>Fahne</option></select><label>Speicher</label><select id="fm-store"><option value="local">Dauerhaft</option><option value="temp">Temporär</option></select><label>Scan</label><input id="fm-scan" type="checkbox" checked><label>Priorität</label><input id="fm-prio" type="checkbox"><label>Beschreibung</label><textarea id="fm-desc"></textarea></div><div class="dnx-fm-actions"><button class="green" data-a="save">Speichern</button><button data-a="current">Aktuelle Frequenz</button></div></div>
 <div class="dnx-fm-section"><h3>Scan-Steuerung</h3><div class="dnx-fm-grid"><label>Verweilzeit</label><input id="fm-dwell" type="number" value="1200"><label>SNR-Schwelle dB</label><input id="fm-thr" type="number" value="6"><label>Haltezeit ms</label><input id="fm-hold" type="number" value="4000"><label>Erkennung</label><select id="fm-detect"><option value="snr">SNR über Rauschsockel</option><option value="smeter">S-Meter</option><option value="squelch">Squelch</option><option value="both">Kombiniert</option></select><label>Scan-Modi</label><div id="fm-modefilters" style="display:grid;grid-template-columns:repeat(3,minmax(72px,1fr));gap:4px"><label><input type="checkbox" value="dmr"> DMR</label><label><input type="checkbox" value="dstar"> D-Star</label><label><input type="checkbox" value="tetra"> TETRA</label><label><input type="checkbox" value="p25"> P25</label><label><input type="checkbox" value="nxdn"> NXDN</label><label><input type="checkbox" value="ysf"> YSF</label><label><input type="checkbox" value="m17"> M17</label><label><input type="checkbox" value="freedv"> FreeDV</label><label><input type="checkbox" value="dab"> DAB</label><label><input type="checkbox" value="drm"> DRM</label><div class="dnx-fm-actions" style="grid-column:1/-1"><button type="button" data-a="modesall">Alle digital</button><button type="button" data-a="modesnone">Kein Filter</button></div></div><label>Treffer speichern</label><input id="fm-autosave" type="checkbox"></div><div class="dnx-fm-grid" style="margin-top:8px"><label title="Kanal nach so vielen erfolglosen Besuchen ueberspringen (0 = aus)">Auto-Skip n</label><input id="fm-skip-n" type="number" value="0"><label title="wie lange der Kanal dann uebersprungen wird">Auto-Skip s</label><input id="fm-skip-s" type="number" value="30"><label title="Treffer so lange halten (0 = Haltezeit)">Auto-Lock s</label><input id="fm-lock" type="number" value="0"><label title="Rauschsockel alle x Minuten neu setzen (0 = aus)">Rauschboden min</label><input id="fm-nf-reset" type="number" value="0"><label title="Zeilen mit Aktivitaet unter x s loeschen (0 = aus)">Zeile löschen &lt; s</label><input id="fm-del-aktiv" type="number" value="0"><label title="wie oft geprueft wird">alle s</label><input id="fm-del-s" type="number" value="3"></div><div class="dnx-fm-actions"><button class="green" data-a="start">▶ Start</button><button data-a="pause">⏸ Pause</button><button data-a="next">⏭ Weiter</button><button class="red" data-a="stop">■ Stopp</button></div></div>
@@ -6878,7 +6616,7 @@ function fmWillkommenWeg(){
     if(window.dnxWelcomeHide){ try{ window.dnxWelcomeHide(); }catch(e2){} }
   }catch(e){}
 }
-function open(){if(!fmMayOpen())return;fmWillkommenWeg();build();var w=document.getElementById("dnx-fm-window");w.style.display="block";try{fmSpaltenGriff(w)}catch(e){}try{fmOffenMerken(true)}catch(e){}try{fmAnalyserEinordnen()}catch(e){}try{fmGroesse(w)}catch(e){}try{var b=w.querySelector(".dnx-fm-body"),g=w.querySelector(".dnx-fm-col-griff");if(b&&g&&g.__dnxFMSetWidth){g.__dnxFMSetWidth(parseFloat(b.style.getPropertyValue("--dnx-fm-left-width"))||310,false)}}catch(e){}try{fmOrt(w)}catch(e){}try{fmFlaechen(true)}catch(e){}try{fmHoch(w)}catch(e){}syncProfileRange(false)}
+function open(){fmWillkommenWeg();build();var w=document.getElementById("dnx-fm-window");w.style.display="block";try{fmSpaltenGriff(w)}catch(e){}try{fmOffenMerken(true)}catch(e){}try{fmAnalyserEinordnen()}catch(e){}try{fmGroesse(w)}catch(e){}try{var b=w.querySelector(".dnx-fm-body"),g=w.querySelector(".dnx-fm-col-griff");if(b&&g&&g.__dnxFMSetWidth){g.__dnxFMSetWidth(parseFloat(b.style.getPropertyValue("--dnx-fm-left-width"))||310,false)}}catch(e){}try{fmOrt(w)}catch(e){}try{fmFlaechen(true)}catch(e){}try{fmHoch(w)}catch(e){}syncProfileRange(false)}
 function vals(){let q=x=>document.querySelector(x),f=parseFreq(q("#fm-freq").value);return{id:crypto.randomUUID?crypto.randomUUID():Date.now()+"-"+Math.random(),name:q("#fm-name").value.trim()||hz(f),frequency:f,mode:q("#fm-mode").value,category:q("#fm-cat").value,icon:q("#fm-icon").value||"★",color:q("#fm-color").value,shape:q("#fm-shape").value,store:q("#fm-store").value,scannable:q("#fm-scan").checked,priority:q("#fm-prio").checked,description:q("#fm-desc").value.trim()}}
 function status(t){let e=document.getElementById("fm-status");if(e)e.textContent=t}
 function render(){let e=document.getElementById("fm-cards");if(!e)return;let s=(document.getElementById("fm-search")?.value||"").toLowerCase();e.innerHTML=favorites.filter(f=>(f.name+f.description+f.frequency).toLowerCase().includes(s)).sort((a,b)=>(b.priority?1:0)-(a.priority?1:0)||a.frequency-b.frequency).map(f=>{let c=f.color||cat(f.category).color;return`<div class="dnx-fm-card ${f.priority?"prio":""}" style="--c:${esc(c)}" data-id="${esc(f.id)}"><h4>${esc(f.icon||cat(f.category).icon)} ${esc(f.name)}</h4><div class="row"><b>${hz(f.frequency)}</b><b>${esc((f.mode||"").toUpperCase())}</b></div><small>${esc(cat(f.category).name)} · ${f.store==="temp"?"temporär":"dauerhaft"} · Scan ${f.scannable?"AN":"AUS"}</small><div>${esc(f.description||"")}</div><button data-do="tune">Abstimmen</button> <button data-do="edit">Bearbeiten</button> <button data-do="del">Löschen</button></div>`}).join("");markers()}
@@ -6945,7 +6683,7 @@ function bind(w){w.addEventListener("click",e=>{let a=e.target.dataset.a;if(a===
 if(a==="start")startList();if(a==="pause"){scan.paused=!scan.paused;status(scan.paused?"Scan pausiert":"Scan läuft")};if(a==="next")stepScan(true);if(a==="stop")stopScan();if(a==="range")makeRange();if(a==="export")download("dnx-frequenzen.json",JSON.stringify({version:1,categories:cats,favorites},null,2),"application/json");if(a==="csv")download("dnx-frequenzen.csv",toCSV(),"text/csv");if(a==="import")w.querySelector("#fm-file").click();if(a==="cats")editCats();if(a==="modesall")document.querySelectorAll("#fm-modefilters input[type=checkbox]").forEach(x=>x.checked=true);if(a==="modesnone")document.querySelectorAll("#fm-modefilters input[type=checkbox]").forEach(x=>x.checked=false);let card=e.target.closest(".dnx-fm-card");if(card){let f=favorites.find(x=>x.id===card.dataset.id);if(e.target.dataset.do==="tune"||e.detail===2)tune(f);if(e.target.dataset.do==="del"){favorites=favorites.filter(x=>x.id!==f.id);save();render()}if(e.target.dataset.do==="edit")fill(f)}});w.querySelector("#fm-search").oninput=render;w.querySelector("#fm-file").onchange=importFile;fmSpaltenGriff(w);drag(w)}
 function fill(f){let q=x=>document.querySelector(x);q("#fm-name").value=f.name;q("#fm-freq").value=f.frequency;q("#fm-mode").value=f.mode;q("#fm-cat").value=f.category;q("#fm-icon").value=f.icon;q("#fm-color").value=f.color;q("#fm-desc").value=f.description||"";favorites=favorites.filter(x=>x.id!==f.id);save();render()}
 function selectedModes(){return Array.from(document.querySelectorAll("#fm-modefilters input[type=checkbox]:checked")).map(e=>String(e.value).toLowerCase())}
-function startList(){if(!fmMayControl())return;let mf=selectedModes();scan.list=favorites.filter(f=>f.scannable&&(!mf.length||mf.includes(String(f.mode||"").toLowerCase()))).sort((a,b)=>(b.priority?1:0)-(a.priority?1:0));if(!scan.list.length){
+function startList(){let mf=selectedModes();scan.list=favorites.filter(f=>f.scannable&&(!mf.length||mf.includes(String(f.mode||"").toLowerCase()))).sort((a,b)=>(b.priority?1:0)-(a.priority?1:0));if(!scan.list.length){
     /* v3.62: laeuft der Empfaenger noch an, wird der Start gemerkt und automatisch nachgeholt */
     if(!currentProfileRange()){
       FM_ANA.startWunsch = Date.now();
@@ -7331,7 +7069,6 @@ function fmScanLineal(ctx, cw, chh, lo, spanne){
   }
 }
 function stepScan(force){
-  if(!fmMayControl()){stopScan();return;}
   if(!scan.running || (scan.paused && !force)){ return; }
   clearTimeout(scan.timer);
   if(!scan.list.length){ return; }
@@ -7353,7 +7090,7 @@ function stepScan(force){
     scan.geschw = Math.round(scan.schritte * 1000 / (Date.now() - scan.schrittZeit));
     scan.schritte = 0; scan.schrittZeit = Date.now();
   }
-  tune(f,true);
+  tune(f);
   status("Scan " + (scan.index + 1) + "/" + scan.list.length + ": " + f.name + " · " + hz(f.frequency));
   fmScanKopf(); fmScanTabelle();
   var dwell = +document.getElementById("fm-dwell").value || 1200;
@@ -7405,162 +7142,10 @@ function stepScan(force){
 function stopScan(){scan.running=false;scan.paused=false;clearTimeout(scan.timer);try{fmKnoepfeMalen()}catch(e){}status("Scanner gestoppt · " + (function(){var n=0;for(var k in scan.hits)n++;return n;})() + " Treffer");fmScanKopf();fmScanTabelle()}
 function currentProfileRange(){try{if(typeof center_freq!=="undefined"&&typeof bandwidth!=="undefined"&&Number.isFinite(+center_freq)&&Number.isFinite(+bandwidth)&&+bandwidth>0)return{min:+center_freq-(+bandwidth/2),max:+center_freq+(+bandwidth/2)}}catch(e){}return null}
 function syncProfileRange(force){let r=currentProfileRange(),a=document.getElementById("fm-rstart"),b=document.getElementById("fm-rend");if(!r||!a||!b)return;a.min=String(Math.round(r.min));a.max=String(Math.round(r.max));b.min=a.min;b.max=a.max;if(force||!a.value.trim())a.value=(r.min/1e6).toFixed(6)+" MHz";if(force||!b.value.trim())b.value=(r.max/1e6).toFixed(6)+" MHz";a.title=b.title="Aktuelles Profil: "+hz(r.min)+" bis "+hz(r.max)}
-function makeRange(){if(!fmMayControl())return;let a=parseFreq(document.getElementById("fm-rstart").value),b=parseFreq(document.getElementById("fm-rend").value),st=+document.getElementById("fm-step").value,m=document.getElementById("fm-rmode").value;if(!Number.isFinite(a)||!Number.isFinite(b)||st<=0||b<a)return status("Ungültiger Bereich");let pr=currentProfileRange();if(!pr)return status("Profilbereich nicht verfügbar");if(a<Math.ceil(pr.min)||b>Math.floor(pr.max))return status("Nur aktuelles Profil erlaubt: "+hz(pr.min)+" bis "+hz(pr.max));let modes=selectedModes();if(!modes.length)modes=String(m||"nfm").split(",").map(x=>x.trim()).filter(Boolean);if(((b-a)/st+1)*modes.length>2000)return status("Maximal 2000 Frequenz-/Modusschritte");scan.list=[];for(let f=a;f<=b;f+=st)modes.forEach(md=>scan.list.push({id:"range-"+f+"-"+md,name:"Bereich "+hz(f)+" "+md.toUpperCase(),frequency:f,mode:md,category:"digital",icon:"🔍",color:"#38bdf8",store:"temp",scannable:true}));fmScanNeu("bereich");scan.bereich={von:a,bis:b,schritt:st,modus:modes.join(",")};scan.running=true;scan.paused=false;scan.index=-1;stepScan(true);try{fmAnalyserZeigen()}catch(e){}}
+function makeRange(){let a=parseFreq(document.getElementById("fm-rstart").value),b=parseFreq(document.getElementById("fm-rend").value),st=+document.getElementById("fm-step").value,m=document.getElementById("fm-rmode").value;if(!Number.isFinite(a)||!Number.isFinite(b)||st<=0||b<a)return status("Ungültiger Bereich");let pr=currentProfileRange();if(!pr)return status("Profilbereich nicht verfügbar");if(a<Math.ceil(pr.min)||b>Math.floor(pr.max))return status("Nur aktuelles Profil erlaubt: "+hz(pr.min)+" bis "+hz(pr.max));let modes=selectedModes();if(!modes.length)modes=String(m||"nfm").split(",").map(x=>x.trim()).filter(Boolean);if(((b-a)/st+1)*modes.length>2000)return status("Maximal 2000 Frequenz-/Modusschritte");scan.list=[];for(let f=a;f<=b;f+=st)modes.forEach(md=>scan.list.push({id:"range-"+f+"-"+md,name:"Bereich "+hz(f)+" "+md.toUpperCase(),frequency:f,mode:md,category:"digital",icon:"🔍",color:"#38bdf8",store:"temp",scannable:true}));fmScanNeu("bereich");scan.bereich={von:a,bis:b,schritt:st,modus:modes.join(",")};scan.running=true;scan.paused=false;scan.index=-1;stepScan(true);try{fmAnalyserZeigen()}catch(e){}}
 function logHit(f,l){let x={...f,id:Date.now()+"",name:"Treffer "+f.name,description:`Automatisch gefunden: ${l.toFixed(1)} dB`,store:"temp",scannable:false};favorites.push(x);save();render()}
 function shapeClass(v){v=String(v||"Kreis").toLowerCase();return v.includes("quadrat")?"square":v.includes("raute")?"diamond":v.includes("stern")?"star":v.includes("fahne")?"flag":v.includes("dreieck")?"triangle":"circle"}
-/* [DNX-MARKER-5] Bookmark-Leiste an die Skala schieben. */
-function dnxBmZurSkala(){
-  try{
-    var bm=document.getElementById("openwebrx-bookmarks-container");
-    var sc=document.getElementById("openwebrx-scale-container");
-    if(!bm||!sc) return;
-    var rs=sc.getBoundingClientRect();
-    if(!rs.height) return;
-    var kennung=Math.round(rs.top)+"/"+Math.round(rs.height)+"/"+Math.round(window.innerWidth)+"x"+Math.round(window.innerHeight);
-    if(window.__dnxBmKenn===kennung) return;
-    window.__dnxBmKenn=kennung;
-    bm.style.setProperty("transform","none","important");
-    var rb=bm.getBoundingClientRect();
-    var d=Math.round(rs.top-rb.bottom);
-    bm.style.setProperty("transform","translateY("+(d>0?d:0)+"px)","important");
-  }catch(eBm){}
-}
-/* [DNX-MENUE-TEST] Rechtsklick-Menue der Besuchertabelle pruefen. */
-function dnxMenueTest(){
-  try{
-    if(window.__dnxMenueT && (Date.now()-window.__dnxMenueT) < 45000) return;
-    window.__dnxMenueT = Date.now();
-    var tab = document.getElementById("dnx-safe-user-table");
-    var zeilen = tab ? tab.querySelectorAll("tbody tr").length : -1;
-    var q = "ev=menu&tab=" + (tab ? 1 : 0) + "&zeilen=" + zeilen
-          + "&kasten=" + (document.getElementById("dnx-ban-live") ? 1 : 0)
-          + "&guard=" + (window.__dnxBanMenu ? 1 : 0);
-    try{
-      var anzF = -1, anzB = 0;
-      if(window.DNXScannerManager && typeof window.DNXScannerManager.getFavorites === "function"){
-        anzF = (window.DNXScannerManager.getFavorites() || []).length;
-      }
-      var bb = (typeof bookmarks !== "undefined" && bookmarks && bookmarks.bookmarks)
-        ? bookmarks.bookmarks : {};
-      Object.keys(bb).forEach(function(k){ anzB += (bb[k] || []).length; });
-      var zf = (tab ? tab.querySelector(".dnx-col-frequency") : null);
-      var roh = zf ? String(zf.textContent || "").trim() : "";
-      var mkr = "";
-      try{ if(typeof window.__dnxMarkerZu === "function"){ mkr = window.__dnxMarkerZu(roh); } }catch(eMK){}
-      q += "&fav=" + anzF + "&bmk=" + anzB
-         + "&roh=" + encodeURIComponent(roh)
-         + "&mkr=" + encodeURIComponent(mkr);
-    }catch(eDIA){}
-    var erste = tab ? tab.querySelector("tbody tr") : null;
-    if(!erste){
-      new Image().src = "http://" + location.hostname + ":8097/m?" + q + "&menu=-&r=" + Date.now();
-      return;
-    }
-    var r = erste.getBoundingClientRect();
-    var x = Math.round(r.left + Math.min(30, r.width / 2));
-    var y = Math.round(r.top + r.height / 2);
-    erste.dispatchEvent(new MouseEvent("contextmenu",
-      { bubbles:true, cancelable:true, clientX:x, clientY:y, view:window, button:2 }));
-    setTimeout(function(){
-      var m = document.getElementById("dnx-ban-menu");
-      var punkte = m ? m.querySelectorAll(".dnx-ban-punkt").length : 0;
-      if(m){ try{ m.remove(); }catch(e){} }
-      new Image().src = "http://" + location.hostname + ":8097/m?" + q
-        + "&menu=" + (m ? 1 : 0) + "&punkte=" + punkte + "&x=" + x + "&y=" + y
-        + "&r=" + Date.now();
-    }, 250);
-  }catch(eT){}
-}
-function markers(){let p=document.getElementById("openwebrx-frequency-container");if(!p||typeof center_freq==="undefined"||typeof bandwidth==="undefined")return;dnxMenueTest();dnxBmZurSkala();
-/* [DNX-MARKER-DIAG3] Messsonde - wird nach der Auswertung wieder entfernt. */
-try{
-  if(!window.__dnxDgT || (Date.now()-window.__dnxDgT)>5000){
-    window.__dnxDgT=Date.now();
-    let g=function(el){ if(!el) return "-"; let r=el.getBoundingClientRect();
-      return Math.round(r.left)+","+Math.round(r.top)+","+Math.round(r.width)+","+Math.round(r.height); };
-    let lay=p.querySelector(".dnx-fm-marker-layer");
-    let mk0=(lay?lay.querySelector(".dnx-fm-marker"):null);
-    let scC=document.getElementById("openwebrx-scale-container");
-    let sk=document.getElementById("openwebrx-scale-canvas")||(scC?scC.querySelector("canvas"):null);
-    let wf=document.querySelector("#openwebrx-waterfall-container")||document.querySelector(".openwebrx-waterfall-container");
-    let bm=document.querySelector("#openwebrx-bookmarks-container");
-    let q="ev=mk3"
-      +"&fc="+g(p)+"&lay="+g(lay)+"&mk0="+g(mk0)
-      +"&scC="+g(scC)+"&sc="+g(sk)
-      +"&wf="+g(wf)+"&bm="+g(bm)
-      +"&body="+Math.round((typeof waterfallWidth==="function")?waterfallWidth():0)
-      +"&iw="+window.innerWidth+"&ih="+window.innerHeight
-      +"&z="+(typeof zoom_level!=="undefined"?zoom_level:"?")
-      +"&off="+(typeof zoom_offset_px!=="undefined"?Math.round(zoom_offset_px):0)
-      +"&cf="+center_freq+"&bw="+bandwidth
-      +"&fav="+((typeof favorites!=="undefined")?favorites.length:-1)
-      +"&vis="+((typeof favorites!=="undefined")?favorites.filter(function(f){return f.frequency>=center_freq-bandwidth/2&&f.frequency<=center_freq+bandwidth/2;}).length:-1);
-    try{
-      let rg=(typeof get_visible_freq_range==="function")?get_visible_freq_range():null;
-      if(rg){ q+="&rs="+rg.start+"&re="+rg.end+"&rbw="+rg.bw; }
-      if(rg && typeof scale_px_from_freq==="function" && typeof favorites!=="undefined"){
-        for(let i=0;i<Math.min(4,favorites.length);i++){
-          let f=favorites[i];
-          q+="&m"+i+"="+encodeURIComponent(String(f.name).slice(0,20)+"|"+f.frequency+"|"+scale_px_from_freq(f.frequency,rg));
-        }
-      }
-    }catch(eRg){ q+="&rerr=1"; }
-    let b=new Image(); b.src="http://"+location.hostname+":8097/m?"+q+"&r="+Date.now();
-  }
-}catch(eDg){}let l=p.querySelector(".dnx-fm-marker-layer");if(!l){l=document.createElement("div");l.className="dnx-fm-marker-layer";p.appendChild(l)}
-/* [DNX-MARKER-3] Hoehe messen: Unterkante der Marker auf die Oberkante der Skala. */
-let dnxMkUnten=0;
-try{
-  let scC=document.getElementById("openwebrx-scale-container");
-  let lr=l.getBoundingClientRect();
-  if(scC && lr.height>0){
-    let sr=scC.getBoundingClientRect();
-    let abstand=lr.height-(sr.top-lr.top);
-    if(isFinite(abstand) && abstand>=0 && abstand<=lr.height) dnxMkUnten=Math.round(abstand);
-  }
-}catch(eU){ dnxMkUnten=0; }/* [DNX-MARKER-1] Sichtbaren Bereich und Bildbreite wie der Empfaenger selbst
-   ermitteln. Bei Zoom ist das Wasserfall-Bild breiter als das Fenster und um
-   zoom_offset_px verschoben; die alte Prozent-Rechnung galt nur fuer Zoom 1. */
-let dnxMkBreite=0, dnxMkVersatz=0, dnxMkVon=0, dnxMkBis=0;
-try{
-  let stufe=1;
-  try{ if(typeof zoom_levels!=="undefined"&&typeof zoom_level!=="undefined"&&zoom_levels[zoom_level]) stufe=zoom_levels[zoom_level]; }catch(eS){}
-  dnxMkBreite=(typeof waterfallWidth==="function"?waterfallWidth():p.clientWidth)*(stufe||1);
-  dnxMkVersatz=(typeof zoom_offset_px!=="undefined"&&isFinite(zoom_offset_px))?zoom_offset_px:0;
-}catch(eMk){ dnxMkBreite=0; dnxMkVersatz=0; }
-if(!dnxMkBreite||!isFinite(dnxMkBreite)) dnxMkBreite=p.clientWidth||1;
-/* [DNX-MARKER-2] Abstand zwischen Skalen-Leinwand und Frequenz-Container
-   messen: die Skala ist der Massstab, ihre linke Kante ist der Nullpunkt. */
-let dnxMkSkalaLinks=0;
-try{
-  let sk=document.getElementById("openwebrx-scale-canvas");
-  if(!sk){ let sc=document.getElementById("openwebrx-scale-container"); if(sc) sk=sc.querySelector("canvas"); }
-  if(sk){
-    let rs=sk.getBoundingClientRect(), rp=p.getBoundingClientRect();
-    if(rs.width>0) dnxMkSkalaLinks=rs.left-rp.left;
-  }
-}catch(eSk){ dnxMkSkalaLinks=0; }
-if(!isFinite(dnxMkSkalaLinks)) dnxMkSkalaLinks=0;
-dnxMkVon=center_freq-bandwidth/2; dnxMkBis=center_freq+bandwidth/2;
-try{
-  if(typeof get_visible_freq_range==="function"){
-    let r=get_visible_freq_range();
-    if(r&&isFinite(r.start)&&isFinite(r.end)&&r.end>r.start){ dnxMkVon=r.start; dnxMkBis=r.end; }
-  }
-}catch(eR){}
-function dnxMkX(freq){
-  /* [DNX-MARKER-2] Dieselbe Rechnung wie die Skala im Original
-     (scale_px_from_freq + get_visible_freq_range). */
-  let r=null;
-  try{ if(typeof get_visible_freq_range==="function") r=get_visible_freq_range(); }catch(eR2){}
-  if(r&&r.bw>0&&typeof scale_px_from_freq==="function"){
-    let xs=scale_px_from_freq(freq,r);
-    if(isFinite(xs)) return dnxMkSkalaLinks+xs;
-  }
-  let x=dnxMkVersatz+(freq-(center_freq-bandwidth/2))/bandwidth*dnxMkBreite;
-  return isFinite(x)?(dnxMkSkalaLinks+x):0;
-}
-let visible=favorites.filter(f=>f.frequency>=dnxMkVon&&f.frequency<=dnxMkBis);l.innerHTML=visible.map(f=>`<span class="dnx-fm-marker" data-id="${esc(f.id)}" title="${esc(f.name)} · ${hz(f.frequency)} · ${(f.mode||"").toUpperCase()}" style="--c:${esc(f.color||cat(f.category).color)};left:${dnxMkX(f.frequency).toFixed(1)}px;bottom:${dnxMkUnten}px"><i class="dnx-fm-shape dnx-shape-${shapeClass(f.shape)}"></i><b>${esc(f.icon||"★")} ${esc(f.name)}</b></span>`).join("");l.querySelectorAll(".dnx-fm-marker").forEach(m=>m.onclick=function(e){e.preventDefault();e.stopPropagation();let f=favorites.find(x=>x.id===m.dataset.id);if(f)tune(f)})}
+function markers(){let p=document.getElementById("openwebrx-frequency-container");if(!p||typeof center_freq==="undefined"||typeof bandwidth==="undefined")return;let l=p.querySelector(".dnx-fm-marker-layer");if(!l){l=document.createElement("div");l.className="dnx-fm-marker-layer";p.appendChild(l)}let visible=favorites.filter(f=>f.frequency>=center_freq-bandwidth/2&&f.frequency<=center_freq+bandwidth/2);l.innerHTML=visible.map(f=>`<span class="dnx-fm-marker" data-id="${esc(f.id)}" title="${esc(f.name)} · ${hz(f.frequency)} · ${(f.mode||"").toUpperCase()}" style="--c:${esc(f.color||cat(f.category).color)};left:${((f.frequency-(center_freq-bandwidth/2))/bandwidth*100).toFixed(3)}%"><i class="dnx-fm-shape dnx-shape-${shapeClass(f.shape)}"></i><b>${esc(f.icon||"★")} ${esc(f.name)}</b></span>`).join("");l.querySelectorAll(".dnx-fm-marker").forEach(m=>m.onclick=function(e){e.preventDefault();e.stopPropagation();let f=favorites.find(x=>x.id===m.dataset.id);if(f)tune(f)})}
 function editCats(){let txt=prompt("Kategorien als Name|Icon|#Farbe, eine Zeile je Kategorie",cats.map(c=>`${c.name}|${c.icon}|${c.color}`).join("\n"));if(txt===null)return;cats=txt.split(/\n/).map((x,i)=>{let p=x.split("|");return{id:"custom"+i,name:p[0]||"Kategorie",icon:p[1]||"★",color:p[2]||"#94a3b8"}});save();optionCats(document.getElementById("fm-cat"));render()}
 function toCSV(){return["Name;Frequenz;Modus;Kategorie;Icon;Farbe;Beschreibung",...favorites.map(f=>[f.name,f.frequency,f.mode,f.category,f.icon,f.color,f.description].map(x=>'"'+String(x||"").replace(/"/g,'""')+'"').join(";"))].join("\n")}
 function download(n,d,t){let a=document.createElement("a");a.href=URL.createObjectURL(new Blob([d],{type:t}));a.download=n;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
@@ -9175,13 +8760,13 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
 
       button.style.setProperty(
         "background",
-        visible ? "#1f8f52" : "#666666",
+        visible ? "#168cff" : "#666666",
         "important"
       );
 
       button.style.setProperty(
         "color",
-        visible ? "#f2fff8" : "#ffffff",
+        "#ffffff",
         "important"
       );
 
@@ -9222,7 +8807,7 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
         "padding:0 10px;" +
         "border-radius:999px;" +
         "border:1px solid #ffffff;" +
-        "background:#1f8f52;" +
+        "background:#168cff;" +
         "color:#ffffff;" +
         "font:700 12px/1 Segoe UI,sans-serif;" +
         "cursor:pointer;";
@@ -9295,113 +8880,6 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
 
 
 
-/* DNX_REGLER_GRIFF_START
-   Regler (input type=range) reagieren nicht ueberall auf Ziehen, weil andere
-   DNX-Listener den Mausdruck abfangen. Dieser Griff setzt den Wert direkt aus
-   der Zeigerposition - unabhaengig vom Browser-Standardverhalten. */
-(function(){
-  if(window.__dnxReglerGriff){ return; }
-  window.__dnxReglerGriff = true;
-
-  var aktiv = null;
-
-  function wertSetzen(el, clientX){
-    if(!el){ return; }
-    var r = el.getBoundingClientRect();
-    if(!r || r.width < 8){ return; }
-    var min = parseFloat(el.min); if(!isFinite(min)){ min = 0; }
-    var max = parseFloat(el.max); if(!isFinite(max)){ max = 100; }
-    var step = parseFloat(el.step); if(!isFinite(step) || step <= 0){ step = 0; }
-    var f = (clientX - r.left) / r.width;
-    f = Math.max(0, Math.min(1, f));
-    var v = min + f * (max - min);
-    if(step > 0){ v = Math.round(v / step) * step; }
-    v = Math.max(min, Math.min(max, v));
-    el.value = String(v);
-    try{ el.dispatchEvent(new Event("input", { bubbles: true })); }catch(e1){}
-    try{ el.dispatchEvent(new Event("change", { bubbles: true })); }catch(e2){}
-  }
-
-  function istRegler(t){
-    return !!(t && t.tagName === "INPUT" && String(t.type).toLowerCase() === "range");
-  }
-
-  /* Wichtig: hier wird bewusst NICHT stopPropagation aufgerufen - sonst
-     bekommen andere Bedienelemente auf der Seite den Mausdruck nicht mehr und
-     ihre eigenen Regler/Drag-Funktionen sterben. */
-  /* Bewusst ohne preventDefault: sonst entstehen keine mousedown-Ereignisse
-     mehr und fremde Bedienelemente (Drag, Auswahl, alte Maus-Handler der
-     Empfaenger-Oberflaeche) reagieren nicht mehr. */
-  document.addEventListener("pointerdown", function(e){
-    if(!istRegler(e.target)){ return; }
-    aktiv = e.target;
-    wertSetzen(aktiv, e.clientX);
-  }, true);
-
-  document.addEventListener("mousedown", function(e){
-    if(!istRegler(e.target)){ return; }
-    aktiv = e.target;
-    wertSetzen(aktiv, e.clientX);
-  }, true);
-
-  document.addEventListener("pointermove", function(e){
-    if(!aktiv){ return; }
-    wertSetzen(aktiv, e.clientX);
-  }, true);
-
-  document.addEventListener("mousemove", function(e){
-    if(!aktiv){ return; }
-    wertSetzen(aktiv, e.clientX);
-  }, true);
-
-  function los(){ aktiv = null; }
-  document.addEventListener("pointerup", los, true);
-  document.addEventListener("mouseup", los, true);
-  document.addEventListener("pointercancel", los, true);
-
-  /* Mausrad: EIN Handler ganz aussen am Fenster. Er laeuft vor allen anderen
-     Listenern (auch vor fremden, die Ereignisse abfangen) und blockiert sie
-     nicht - deshalb funktionieren alle uebrigen Einstellungen unveraendert. */
-  function radSchritt(el, e){
-    if(!el){ return false; }
-    var min = parseFloat(el.min), max = parseFloat(el.max);
-    if(!isFinite(min)){ min = 0; } if(!isFinite(max)){ max = 100; }
-    var stufe = parseFloat(el.step); if(!isFinite(stufe) || stufe <= 0){ stufe = (max - min) / 100; }
-    var schritt = Math.max(stufe * 5, (max - min) / 20);
-    if(e && e.shiftKey){ schritt = stufe; }
-    var v = parseFloat(el.value) + ((e && e.deltaY > 0) ? -schritt : schritt);
-    if(stufe > 0){ v = Math.round(v / stufe) * stufe; }
-    v = Math.max(min, Math.min(max, v));
-    if(String(v) === String(el.value)){ return false; }
-    el.value = String(v);
-    try{ el.dispatchEvent(new Event("input", { bubbles: true })); }catch(e1){}
-    try{ el.dispatchEvent(new Event("change", { bubbles: true })); }catch(e2){}
-    return true;
-  }
-  /* Merker fuer andere DNX-Teile: "der Rad-Griff ist global da" */
-  try{ window.__dnxRadWheel = true; }catch(eM){}
-  function einhaengen(el){
-    /* nur markieren: das 3D-Tool hat einen eigenen Document-Handler, der sich
-       damit zurueckhaelt (sonst doppelter Schritt) */
-    if(!el || el.__dnxRad){ return; }
-    el.__dnxRad = 1;
-  }
-  window.addEventListener("wheel", function(e){
-    if(!istRegler(e.target)){ return; }
-    var geaendert = radSchritt(e.target, e);
-    if(geaendert){ try{ e.preventDefault(); }catch(e3){} }
-  }, { capture: true, passive: false });
-  function alleEinhaengen(){
-    var l = document.querySelectorAll('input[type=range]');
-    for(var i = 0; i < l.length; i++){ einhaengen(l[i]); }
-  }
-  alleEinhaengen();
-  setInterval(function(){ try{ alleEinhaengen(); }catch(e){} }, 1200);
-  document.addEventListener("pointerdown", function(e){ einhaengen(e.target); }, true);
-  document.addEventListener("mouseover", function(e){ einhaengen(e.target); }, true);
-})();
-/* DNX_REGLER_GRIFF_END */
-
 /* DNX_MASTER_TOOL_ROW_START */
 (function(){
   "use strict";
@@ -9415,8 +8893,8 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     {
       id:"dnx-master-yellow",
       label:"Gelb Hover",
-      color:"#1f8f52",
-      textColor:"#f2fff8",
+      color:"#ffd400",
+      textColor:"#000",
       original:"dnx-btn-yellow-line",
       state:function(){
         return !!window.__dnxYellowEnabled;
@@ -9425,8 +8903,8 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     {
       id:"dnx-master-green",
       label:"Gruen Tuning",
-      color:"#1f8f52",
-      textColor:"#f2fff8",
+      color:"#22d94b",
+      textColor:"#000",
       original:"dnx-btn-green-line",
       state:function(){
         return !!window.__dnxGreenEnabled;
@@ -9435,8 +8913,8 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     {
       id:"dnx-master-status",
       label:"DNX Status",
-      color:"#1f8f52",
-      textColor:"#f2fff8",
+      color:"#168cff",
+      textColor:"#fff",
       original:"dnx-btn-status-toggle",
       state:function(){
         var element=document.getElementById(
@@ -9449,8 +8927,8 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     {
       id:"dnx-master-3d",
       label:"3D Tool",
-      color:"#1f8f52",
-      textColor:"#f2fff8",
+      color:"#7257ff",
+      textColor:"#fff",
       original:"dnx-btn-3d-tool-toggle",
       state:function(){
         return visible(
@@ -9464,8 +8942,8 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     {
       id:"dnx-master-photo",
       label:"noVNC / Foto",
-      color:"#1f8f52",
-      textColor:"#f2fff8",
+      color:"#1414b8",
+      textColor:"#fff",
       original:"dnx-photo-desc-toggle-btn",
       state:function(){
         var element=document.querySelector(
@@ -9481,8 +8959,8 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     {
       id:"dnx-master-remote",
       label:"Remote VIEW",
-      color:"#1f8f52",
-      textColor:"#f2fff8",
+      color:"#008ca8",
+      textColor:"#fff",
       original:"dnx-remote-view-btn",
       state:function(){
         return visible(
@@ -9586,8 +9064,8 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
       }
 
       #dnx-master-remote{
-        grid-column:auto !important;
-        min-width:0 !important;
+        grid-column:span 2 !important;
+        min-width:150px !important;
       }
 
       #dnx-master-tool-row > button::before,
@@ -9855,7 +9333,7 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
       paragraphs: [
         "Willkommen bei DNX Tools – der freien Werkzeugsammlung für OpenWebRX! Dazu gehören das mehrsprachige Willkommenstool, der DNX Styler, Wasserfall- und Spektrumansichten in 2D und 3D, Wetterkarten in 2D/3D mit Radar sowie Status- und Schnellschalter.",
         "Der SDR-Scanner mit Frequenzmanager bietet Favoriten und Kategorien, Bereichs- und automatischen Scan, Filter für digitale Modi, Prioritäten, SNR-Erkennung, Live-Lupe und Kanalanalysator. Mit Remote View kannst du über VNC 1 und 2 entfernte Bildschirme live ansehen und – sofern freigegeben – bedienen. Unterstützte Webcam- und Videostreams bringen zusätzliche Live-Bilder in den Receiver. Eine Nutzerübersicht im KiwiSDR-Stil zeigt, wer verbunden ist und – soweit verfügbar – aus welchem Land oder Standort. Deine Styler-Anpassungen bleiben von denen anderer Nutzer getrennt.",
-        "Im Bereich „DNX Projekte – Downloads“ bestimmen die vom Admin eingestellten Rollenrechte, wer Projekte ansehen und Dateien herunterladen darf. Zu jedem Tool gibt es eine leicht verständliche Beschreibung, die erklärt, was es kann. Die Installation und Entfernung erfolgen direkt im Receiver; dafür gelten die vom Admin festgelegten Rechte. Registrierte Nutzer können – sofern freigeschaltet – eigene Tools hochladen und austauschen.",
+        "Im Bereich „DNX Projekte – Downloads“ auf dem DNX-OpenWebRX stehen die Tools für alle frei zum Herunterladen bereit – dafür ist keine Admin-Freigabe nötig. Zu jedem Tool gibt es eine leicht verständliche Beschreibung, die erklärt, was es kann. Die Installation und Entfernung erfolgen direkt im Receiver; dafür gelten die vom Admin festgelegten Rechte. Registrierte Nutzer können – sofern freigeschaltet – eigene Tools hochladen und austauschen.",
         "Admins können außerdem festlegen, wer zwischen Profilen wechseln darf. Profile mit sensiblen oder nicht öffentlich freigegebenen Frequenzbereichen lassen sich so für unberechtigte Nutzerrollen sperren. Auch Registrierung, Freischaltung, Rollen und Sicherheitsregeln können sie steuern. DNX Tools sind Hobbyprojekte und kein Bestandteil des offiziellen OpenWebRX-Projekts."
       ]
     },
@@ -9864,7 +9342,7 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
       paragraphs: [
         "Welcome to DNX Tools — a collection of tools for OpenWebRX! It includes a multilingual Welcome Tool, the DNX Styler, 2D and 3D waterfall and spectrum views, 2D and 3D weather maps with radar, plus status and quick-access controls.",
         "The SDR Scanner and Frequency Manager offers favorites and categories, band and automatic scanning, digital-mode filters, priorities, SNR detection, a live magnifier and a channel analyzer. With Remote View, you can watch remote screens live via VNC 1 and 2 and control them if you have permission. Supported webcam and video streams add more live views to the receiver. A KiwiSDR-style user overview shows who is connected and, where available, their country or location. Your DNX Styler customizations remain separate from those of other users.",
-        "In „DNX Projekte – Downloads“ on DNX OpenWebRX, viewing and downloading tools require the corresponding role permissions set by the administrator. Each tool has an easy-to-understand description explaining what it does. Tools can be installed and removed directly in the receiver, subject to the permissions set by the admin. Registered users may upload and share their own tools if authorized.",
+        "In „DNX Projekte – Downloads“ on DNX OpenWebRX, the tools are freely available for anyone to download—no admin approval is required. Each tool has an easy-to-understand description explaining what it does. Tools can be installed and removed directly in the receiver, subject to the permissions set by the admin. Registered users may upload and share their own tools if authorized.",
         "Admins can also control who may switch between profiles. Profiles containing sensitive frequencies or ranges that should not be publicly accessible can be restricted to authorized user roles. Admins can manage registration, account activation, roles and security settings as well. DNX Tools are hobby projects and are not part of the official OpenWebRX project."
       ]
     },
@@ -9957,7 +9435,7 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     login: "Anmelden · Log in · Вход · Inloggen",
     close: "Schließen · Close · Закрыть · Sluiten"
   };
-  var base = window.__dnxBasis();window.addEventListener("dnx:basis",function(e){base=e.detail;});
+  var base = location.protocol + "//" + location.hostname + ":8096";
   var wrap = null, refs = {};
   function el(t, c, x){
     var e = document.createElement(t);
@@ -10110,7 +9588,7 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     return /(?:^|; )dnxac_pub=/.test(document.cookie);
   }
   var HINT = "Bedienung nur für registrierte Nutzer · Registered users only · Только для зарегистрированных · Alleen voor geregistreerde";
-  var base = window.__dnxBasis();window.addEventListener("dnx:basis",function(e){base=e.detail;});
+  var base = location.protocol + "//" + location.hostname + ":8096";
   var banner = null;
   function showHint(host){
     if(banner && banner.parentNode) return;
@@ -10398,7 +9876,7 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     return shareClean(a, 24);
   }
   function shareKeep(t){
-    var k = ["name", "preset", "bg", "panel", "accent", "btn", "text", "btntext", "radius", "glow", "fx", "sound", "hover", "pitch", "rh", "pal", "stan", "stf", "staus", "stx", "sty", "mt", "mt_seite", "mt_abstand", "mt_ticks", "mt_schrift", "mt_min", "mt_scroller", "mt_bg", "mt_fg", "m3d", "m3d_flip"];
+    var k = ["name", "preset", "bg", "panel", "accent", "btn", "text", "btntext", "radius", "glow", "fx", "sound", "hover", "pitch", "rh", "pal", "stan", "stf", "staus", "stx", "sty", "mt", "mt_seite", "mt_abstand", "mt_ticks", "mt_schrift", "mt_min", "mt_scroller", "mt_bg", "mt_fg"];
     var o = {}, i, v, n;
     if(!t || typeof t !== "object"){ return o; }
     for(i = 0; i < k.length; i++){
@@ -10423,8 +9901,6 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
       v = String(v);
       if(k[i] === "name" || k[i] === "preset"){ o[k[i]] = shareClean(v, 28); continue; }
       if(/^#[0-9a-fA-F]{3,8}$/.test(v)){ o[k[i]] = v.toLowerCase(); continue; }
-      if(/^t_[a-z0-9_]{1,20}$/.test(k[i])){ var tv = (v === 1 || v === "1" || v === true || v === "true") ? 1 : 0; o[k[i]] = tv; continue; }
-      if(k[i] === "m3d"){ if(v === "std" || v === "3d" || v === "both"){ o[k[i]] = v; } continue; }
       if(k[i] === "pal" && /^linear-gradient\([0-9a-zA-Z .,%#()\-]{5,400}\)$/.test(v)){ o[k[i]] = v; }
     }
     return o;
@@ -10475,8 +9951,6 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
       save(current);
       apply(current);
       if(uiHooks.sync){ try{ uiHooks.sync(); }catch(e2){} }
-      dnxToolsApply(d);
-      dnxToolsSave();
       dnxShareStatus("uebernommen: " + shareClean(j.name || "", 28));
       if(uiHooks.flash){ uiHooks.flash("uebernommen: " + shareClean(j.name || "", 28)); }
     }).catch(function(){ dnxShareStatus("Server nicht erreichbar"); });
@@ -10492,16 +9966,10 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     if(shareEls.url){ shareEls.url.value = shareBase(); }
     var d = shareKeep(current);
     d.name = name;
-    var m3 = dnx3dLesen();
-    d.m3d = m3.mode;
-    d.m3d_flip = m3.flip;
-    var tstate = dnxToolsSnapshot(), tk;
-    for(tk in tstate){ d[tk] = tstate[tk]; }
     var opt = { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ name: name, author: autor, skin: d }) };
     dnxShareStatus("speichere auf " + shareBase() + " ...");
     shareFetch("/dnx/styler/save", opt).then(function(j){
       if(j && j.ok){
-        try{ if(j.id && j.token){ localStorage.setItem("dnx_styler_share_tok_" + j.id, String(j.token)); } }catch(eT){}
         shareInfo.count = j.count | 0;
         shareInfo.users = j.users | 0;
         shareInfo.st = "ok";
@@ -10741,15 +10209,7 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     b1.onclick = function(){ try{ localStorage.setItem(SHARE_INTRO_KEY, "1"); }catch(e){} dnxIntroSet(false); };
     var b2 = document.createElement("button");
     b2.id = "dnx-intro-gosave";
-    b2.onclick = function(){
-      dnxIntroSet(false);
-      if(shareEls.name){ try{
-        var abschnitt = shareEls.name.closest("details");
-        if(abschnitt){ abschnitt.open = true; }
-        shareEls.name.focus();
-        shareEls.name.scrollIntoView({ block: "nearest" });
-      }catch(e){} }
-    };
+    b2.onclick = function(){ dnxIntroSet(false); if(shareEls.name){ try{ shareEls.name.focus(); }catch(e){} } };
     row2.appendChild(b1);
     row2.appendChild(b2);
     box.appendChild(row);
@@ -10819,51 +10279,15 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     ".dnx-smeter-demo-bar{height:100%;width:30%;border-radius:inherit;background-image:linear-gradient(90deg,var(--dnx-accent,#35ff83) 0%,var(--dnx-accent-hi,#b9ffd6) 45%,#ffd75e 75%,#ff5d5d 100%);background-size:220% 100%;box-shadow:0 0 calc(var(--dnx-glow,6) * 1px) var(--dnx-accent-soft,rgba(53,255,131,.35)), inset 0 -2px 3px rgba(0,0,0,.35);transition:width .35s linear;}",
     "html.dnx-styled[data-fx=\"1\"] .dnx-smeter-demo-bar{animation:dnxSmeterFlow calc(3.1s - var(--dnx-fx) * 2.1s) linear infinite;}",
     "html.dnx-styled[data-fx=\"1\"] .dnx-smeter-demo-track{animation:dnxSmeterGlow calc(3.7s - var(--dnx-fx) * 2.5s) infinite ease-in-out;}",
-    "#dnx-styler-ui .dnx-sec{margin:6px 0;border:1px solid rgba(50,255,120,.30);border-radius:8px;overflow:hidden;background:rgba(255,255,255,.02);}",
-    "#dnx-styler-ui .dnx-sec>summary{cursor:pointer;list-style:none;padding:5px 8px;font-weight:700;font-size:11.5px;letter-spacing:.03em;color:#9dffbe;background:rgba(50,255,120,.10);user-select:none;}",
-    "#dnx-styler-ui .dnx-sec>summary::-webkit-details-marker{display:none;}",
-    "#dnx-styler-ui .dnx-sec>summary::before{content:'\\25B8';display:inline-block;width:12px;color:#35ff83;}",
-    "#dnx-styler-ui .dnx-sec[open]>summary::before{content:'\\25BE';}",
-    "#dnx-styler-ui .dnx-sec-body{padding:6px 8px 8px;display:flex;flex-direction:column;gap:4px;}",
-    "#dnx-styler-ui .dnx-sec-body>label{font-size:11px;opacity:.92;}",
-    "#dnx-styler-ui .dnx-sec-body>button{width:100%;}",
-    "#dnx-styler-ui{position:fixed;right:12px;bottom:12px;z-index:2147482000;width:280px;max-height:80vh;overflow-y:auto;overflow-x:hidden;background:#0f1713;color:#e8f5ec;border:2px solid rgba(50,255,120,.88);border-radius:16px;padding:0 12px 12px 12px;font:12px/1.4 'Segoe UI',Arial,sans-serif;box-sizing:border-box;box-shadow:0 0 14px rgba(30,255,110,.55),0 0 30px rgba(20,200,80,.32),0 0 48px rgba(20,160,70,.18),inset 0 0 12px rgba(40,180,70,.18);}"
-      + "#dnx-styler-ui::-webkit-scrollbar{width:10px;}"
-      + "#dnx-styler-ui::-webkit-scrollbar-thumb{background:rgba(50,255,120,.45);border-radius:6px;}"
-      + "#dnx-styler-ui .rh{position:absolute;z-index:28;}",
-    /* v6.1: exakt die Ziehleiste des Empfaenger-Fensters - gleiche Hoehe (5 px),
-       gleiche Farbe (rgba(255,0,0,.85)), gleiche Rundung wie der Rahmen (16 px). */
-    "#dnx-styler-bar{position:sticky !important;top:0 !important;z-index:30 !important;height:5px;flex:0 0 auto;"
-      + "margin:-2px -14px 10px -14px;background:rgba(255,0,0,.85);min-height:5px;"
-      + "border-radius:6px 6px 0 0;cursor:move;}"
-    ,
-    "#dnx-styler-bar:hover{background:rgba(255,0,0,1);}",
-    "#dnx-styler-bar::before{content:'';position:absolute;left:0;right:0;top:-5px;height:14px;}",
-    /* v6.10: eigene Ziehgriffe des Styler-Fensters (frei am Bildschirm
-       ausgerichtet, damit sie immer genau auf der Fensterkante sitzen) */
-    "#dnx-styler-griffe{position:fixed;inset:0;width:0;height:0;pointer-events:none;"
-      + "z-index:2147482200;}",
-    "#dnx-styler-griffe .dnx-srh{position:fixed;pointer-events:auto;box-sizing:border-box;"
-      + "margin:0;padding:0;touch-action:none;user-select:none;-webkit-user-select:none;"
-      + "border-radius:4px;transition:background .12s,box-shadow .12s;}",
-    "#dnx-styler-griffe .dnx-srh-nw{border-left:2px solid rgba(50,255,120,.9);"
-      + "border-top:2px solid rgba(50,255,120,.9);border-radius:6px 0 0 0;cursor:nwse-resize;background:rgba(50,255,120,.10);}",
-    "#dnx-styler-griffe .dnx-srh-ne{border-right:2px solid rgba(50,255,120,.9);"
-      + "border-top:2px solid rgba(50,255,120,.9);border-radius:0 6px 0 0;cursor:nesw-resize;background:rgba(50,255,120,.10);}",
-    "#dnx-styler-griffe .dnx-srh-sw{border-left:2px solid rgba(50,255,120,.9);"
-      + "border-bottom:2px solid rgba(50,255,120,.9);border-radius:0 0 0 6px;cursor:nesw-resize;background:rgba(50,255,120,.10);}",
-    "#dnx-styler-griffe .dnx-srh-se{border-right:2px solid rgba(50,255,120,.9);"
-      + "border-bottom:2px solid rgba(50,255,120,.9);border-radius:0 0 6px 0;cursor:nwse-resize;background:rgba(50,255,120,.10);}",
-    "#dnx-styler-griffe .dnx-srh-nw:hover,#dnx-styler-griffe .dnx-srh-ne:hover,"
-      + "#dnx-styler-griffe .dnx-srh-sw:hover,#dnx-styler-griffe .dnx-srh-se:hover{"
-      + "background:rgba(50,255,120,.42);box-shadow:0 0 10px rgba(30,255,110,.85);}",
-    "#dnx-styler-griffe .dnx-srh-n,#dnx-styler-griffe .dnx-srh-s{background:rgba(50,255,120,.16);}",
-    "#dnx-styler-griffe .dnx-srh-w,#dnx-styler-griffe .dnx-srh-e{background:rgba(50,255,120,.16);}",
-    "#dnx-styler-griffe .dnx-srh-n:hover,#dnx-styler-griffe .dnx-srh-s:hover,"
-      + "#dnx-styler-griffe .dnx-srh-w:hover,#dnx-styler-griffe .dnx-srh-e:hover{"
-      + "background:rgba(50,255,120,.5);box-shadow:0 0 10px rgba(30,255,110,.7);}",
-    "#dnx-styler-griffe .dnx-srh-n{cursor:ns-resize;}#dnx-styler-griffe .dnx-srh-s{cursor:ns-resize;}",
-    "#dnx-styler-griffe .dnx-srh-w{cursor:ew-resize;}#dnx-styler-griffe .dnx-srh-e{cursor:ew-resize;}",
+    "#dnx-styler-ui{position:fixed;right:12px;bottom:12px;z-index:2147482000;width:280px;max-height:80vh;overflow-y:auto;overflow-x:hidden;background:#0f1713;color:#e8f5ec;border:2px solid rgba(50,255,120,.75);border-radius:12px;padding:12px;font:12px/1.4 'Segoe UI',Arial,sans-serif;box-sizing:border-box;}",
+    "#dnx-styler-bar{position:sticky !important;top:-12px !important;z-index:9 !important;height:8px;margin:-12px -12px 10px -12px;background:rgba(255,0,0,.92);border-radius:10px 10px 0 0;cursor:move;box-shadow:0 2px 6px rgba(0,0,0,.55);}",
+    "#dnx-styler-ui .rh{position:absolute;}",
+    "#dnx-styler-ui .rh-e{top:28px;bottom:28px;right:0;width:12px;cursor:ew-resize;background:transparent;}",
+    "#dnx-styler-ui .rh-s{left:28px;right:28px;bottom:0;height:12px;cursor:ns-resize;background:transparent;}",
+    "#dnx-styler-ui .rh-se{right:2px;bottom:2px;width:22px;height:22px;cursor:nwse-resize;background:transparent;border:0;}",
+    "#dnx-styler-ui .rh-nw{left:2px;top:2px;width:22px;height:22px;cursor:nwse-resize;background:transparent;border:0;}",
+    "#dnx-styler-ui .rh-ne{right:2px;top:2px;width:22px;height:22px;cursor:nesw-resize;background:transparent;border:0;}",
+    "#dnx-styler-ui .rh-sw{left:2px;bottom:2px;width:22px;height:22px;cursor:nesw-resize;background:transparent;border:0;}",
     "html.dnx-rh-hide #dnx-receiver-overlay .dnx-resize-handle,html.dnx-rh-hide #dnx-receiver-overlay .dnx-resize-handle,html.dnx-rh-hide #dnx-receiver-overlay .dnx-rh-w,html.dnx-rh-hide #dnx-receiver-overlay .dnx-rh-e,html.dnx-rh-hide #dnx-receiver-overlay .dnx-rh-nw,html.dnx-rh-hide #dnx-receiver-overlay .dnx-rh-ne,html.dnx-rh-hide #dnx-receiver-overlay .dnx-rh-sw,html.dnx-rh-hide #dnx-receiver-overlay .dnx-rh-se{display:none !important;}",
     "html.dnx-rh-show #dnx-receiver-overlay .dnx-rh-nw{border:0;border-radius:0;}",
     "html.dnx-rh-show #dnx-receiver-overlay .dnx-rh-ne{border:0;border-radius:0;}",
@@ -10893,9 +10317,9 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     "#dnx-styler-ui .dnx-feld input[type=range]{width:100%;margin:0;}",
     "#dnx-styler-ui .row button{flex:1;padding:5px 6px;border-radius:6px;border:1px solid #35ff83;background:#14261b;color:#e8f5ec;cursor:pointer;font-weight:700;}",
     "#dnx-styler-ui .val{float:right;color:#b9efff;}",
-    "#dnx-styler-ui .head{display:flex;align-items:center;gap:6px;position:sticky;top:5px;z-index:29;background:#0f1713;padding:2px 0 1px;}",
+    "#dnx-styler-ui .head{display:flex;align-items:center;gap:6px;}",
     "#dnx-styler-ui .head h4{flex:1 1 auto;margin:0;}",
-    "#dnx-styler-close{flex:none;width:26px;height:22px;padding:0;border-radius:6px;border:1px solid #35ff83;background:#14261b;color:#e8f5ec;font:700 12px/1 'Segoe UI',Arial,sans-serif;cursor:pointer;position:relative;z-index:31;pointer-events:auto;}",
+    "#dnx-styler-close{flex:none;width:26px;height:22px;padding:0;border-radius:6px;border:1px solid #35ff83;background:#14261b;color:#e8f5ec;font:700 12px/1 'Segoe UI',Arial,sans-serif;cursor:pointer;}",
     "#dnx-styler-close:hover{background:#1d3a29;color:#ffffff;}",
     "#dnx-styler-launch{width:100%;min-height:32px;padding:6px 10px;font:700 13px/1.2 'Segoe UI',Arial,sans-serif;box-sizing:border-box;}",
     /* ---- v45: Scrollbalken wie im Besucher-Fenster ---- */
@@ -10921,10 +10345,6 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     "#dnx-top-line:hover{background:#ff5a5a;box-shadow:0 0 7px rgba(255,0,0,1),0 0 14px rgba(255,0,0,.65);}",
     "body.dnx-top-h .webrx-top-container{height:var(--dnx-top-h) !important;min-height:0 !important;max-height:none !important;overflow:hidden !important;}",
     "body.dnx-top-h .openwebrx-waterfall-container{transition:none !important;min-height:0 !important;}",
-    "/* ---- v3.96: mehr Wasserfall - Bild-/Beschreibungsbereich bekommt einen Deckel ---- */",
-    "html body .openwebrx-description-container.expanded{max-height:32vh !important;}",
-    "html body #webrx-canvas-background{min-height:26vh !important;}",
-    "html body .webrx-top-container{max-height:58vh !important;overflow:auto !important;}",
     "/* ---- v51: Status-Leiste unten links (Pillen) ---- */",
     "html.dnx-styled.dnx-st-an #openwebrx-panel-status{position:relative !important;left:var(--dnx-st-x,0px) !important;bottom:var(--dnx-st-y,0px) !important;z-index:2100 !important;}",
     "html.dnx-styled.dnx-st-an .openwebrx-progressbar{background-color:var(--dnx-st-pill,#003850) !important;color:var(--dnx-st-text,#e8f5ec) !important;}",
@@ -10943,17 +10363,7 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     "#dnx-styler-ui .dnx-an-txt{font-size:13px;color:#ffffff;}",
     "#dnx-fft-line{position:absolute;left:0;right:0;bottom:-3px;height:3px;cursor:ns-resize;touch-action:none;z-index:70;background:#ff2020;box-shadow:0 0 5px rgba(255,0,0,.85),0 0 10px rgba(255,0,0,.35);}",
     "#dnx-fft-line::after{content:'';position:absolute;left:0;right:0;top:-6px;bottom:-5px;}",
-    "#dnx-fft-line:hover{background:#ff5a5a;box-shadow:0 0 7px rgba(255,0,0,1),0 0 14px rgba(255,0,0,.65);}",
-    /* v6.0: Farbe und Dicke der beiden roten Ziehlinien aus dem Styler */
-    "#dnx-top-line,#dnx-fft-line{background:var(--dnx-linie-farbe,#ff2020) !important;height:var(--dnx-linie-dicke,3px) !important;}",
-    "#dnx-top-line{top:calc(-1 * var(--dnx-linie-dicke,3px)) !important;}",
-    "#dnx-fft-line{bottom:calc(-1 * var(--dnx-linie-dicke,3px)) !important;}",
-    "#dnx-top-line:hover,#dnx-fft-line:hover{background:var(--dnx-linie-farbe,#ff2020) !important;filter:brightness(1.12);}",
-    /* v6.21: Der Schimmer folgt der Linienfarbe - vorher blieb er hart auf Rot
-       gesetzt, wodurch eine helle (weisse) Linie einen roten Hof bekam und als
-       "weiss mit rot" statt als klare rote Linie wirkte. */
-    "#dnx-top-line,#dnx-fft-line{box-shadow:0 0 5px var(--dnx-linie-schatten,rgba(255,0,0,.85)),0 0 12px var(--dnx-linie-schatten2,rgba(255,0,0,.35)) !important;}",
-    "#dnx-top-line:hover,#dnx-fft-line:hover{box-shadow:0 0 7px var(--dnx-linie-schatten,rgba(255,0,0,1)),0 0 16px var(--dnx-linie-schatten2,rgba(255,0,0,.6)) !important;}",
+    "#dnx-fft-line:hover{background:#ff5a5a;box-shadow:0 0 7px rgba(255,0,0,1),0 0 14px rgba(255,0,0,.65);}"
   ].join("\n");
 
   function hexToRgb(h){
@@ -11067,167 +10477,13 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
       o.start(); o.stop(c.currentTime + d);
     } catch(e){}
   }
-  /* v3.87: Klick-Toene fuer ALLES, was man anklickt (Knoepfe, Schalter,
-     Auswahlfelder, Menuepunkte) - abschaltbar ueber das Werkzeug "Sounds". */
-  /* v3.97: Pegel - 100 % ist jetzt wirklich laut. Vorher wurde der Wert mit
-     0.12 multipliziert, dadurch war selbst 100 % nur ein Fluestern. */
-  function dnxSndPegel(prozent){
-    return (window.__dnxPegel ? window.__dnxPegel(prozent) : 0.3);
-  }
-  var DNX_SND_AUS = false;
-  /* v4.3: beim Laden nicht in Toene ausbrechen - viele Plugins klicken beim
-     Aufbau selbst programmatisch. Nur echte Benutzer-Klicks toenen. */
-  var DNX_SND_START = Date.now();
-  function dnxSndBereit(ev){
-    if(ev && ev.isTrusted === false){ return false; }        /* programmatischer Klick */
-    if(Date.now() - DNX_SND_START < 2500){ return false; }   /* Aufbauphase */
-    return true;
-  }
-  try{ DNX_SND_AUS = (localStorage.getItem("dnx_sounds_aus") === "1"); }catch(e){}
-  function dnxSndAn(){ return !DNX_SND_AUS; }
-  function dnxSndSetze(an){
-    DNX_SND_AUS = !an;
-    try{ localStorage.setItem("dnx_sounds_aus", DNX_SND_AUS ? "1" : "0"); }catch(e){}
-    if(an){ try{ beep(Math.round((current.pitch | 0) || 1200), 0.06, 0.45); }catch(e){} }
-    return true;
-  }
-  /* v3.90: alles, was man anklicken kann - Knoepfe, Schalter, Haken,
-     Profile, Menuepunkte oben (Map/Chat/Status/Settings), Wasserfall-Knoepfe. */
-  var DNX_SND_SEL = [
-    "button", "input", "select", "textarea", "a", "summary", "label", "option",
-    "[role='button']", "[role='tab']", "[role='menuitem']", "[role='option']",
-    "[role='checkbox']", "[role='switch']", "[role='radio']", "[role='slider']",
-    "[onclick]", "[tabindex]:not([tabindex='-1'])",
-    ".openwebrx-button", ".openwebrx-panel-clone summary", ".openwebrx-tab",
-    ".dnx-pt-row", ".dnx-pt-btn", ".dnx-pt-close", ".dnx-pt-arrow", ".dnx-pt-search",
-    ".dnx-pt-title", ".dnx-pt-center", ".dnx-pt-f", ".dnx-pt-sel",
-    ".dnx-wfpro-toggle", ".dnx-wfpro-btns button", ".dnx-wfpro-contrast", ".dnx-wfpro-reset",
-    ".dnx-slots-chip", ".dnx-dmrs-btns button", ".dnx-tool-btn", ".m-i",
-    ".ui-dialog-titlebar-close", ".ui-menu-item", ".ui-spinner-button"
-  ].join(", ");
-
-  /* Notnagel: alles, wo der Mauszeiger zur Hand wird, ist anklickbar
-     (faengt Menuepunkte und Sonder-Knoepfe, die keine eigene Klasse haben) */
-  function dnxSndZeiger(t){
-    var n = t, i = 0;
-    while(n && n.nodeType === 1 && n !== document.body && i < 6){
-      try{ if(window.getComputedStyle(n).cursor === "pointer"){ return n; } }catch(e){}
-      n = n.parentElement; i++;
-    }
-    return null;
-  }
-
-  function dnxSndZiel(ev){
-    var t = ev && ev.target;
-    if(!t || !t.closest){ return null; }
-    /* die FX-/Pip-Box toent sich selbst - dort nicht doppelt spielen */
-    if(t.closest("#dnx-fx-box-inline") || t.closest("#dnx-fx-box")){ return null; }
-    if(t.closest("[contenteditable='true']")){ return null; }
-    var el = t.closest(DNX_SND_SEL);
-    if(!el){ el = dnxSndZeiger(t); }
-    if(!el){ return null; }
-    if(el.disabled || el.readOnly){ return null; }
-    return el;
-  }
-  /* Ton-Parameter kommen aus der FX-/Pip-Box (Key dnx_fx_state_v2). */
-  function dnxSndFxState(){
-    var st = { vol:100, pitch:100, len:80, sound:"Soft", mute:false };
-    try{
-      var r = JSON.parse(localStorage.getItem("dnx_fx_state_v2") || "{}");
-      if(r && typeof r === "object"){
-        if(r.vol !== undefined){ st.vol = r.vol | 0; }
-        if(r.pitch !== undefined){ st.pitch = r.pitch | 0; }
-        if(r.len !== undefined){ st.len = r.len | 0; }
-        if(r.sound){ st.sound = String(r.sound); }
-        if(r.mute){ st.mute = true; }
-      }
-    }catch(e){}
-    return st;
-  }
-  function dnxSndTyp(name){
-    if(name === "Click"){ return { t:"square", b:1200 }; }
-    if(name === "Digital"){ return { t:"sawtooth", b:1500 }; }
-    if(name === "Retro"){ return { t:"triangle", b:700 }; }
-    return { t:"sine", b:880 };
-  }
-  function dnxSndSpielen(el, hoch){
-    if(DNX_SND_AUS){ return; }
-    var st = dnxSndFxState();
-    if(st.mute){ return; }
-    var vol = Math.max(0, Math.min(100, st.vol)) / 100;
-    if(vol <= 0){ return; }
-    var w = dnxSndTyp(st.sound);
-    var base = w.b * (Math.max(10, st.pitch) / 100);
-    var f = Math.round(hoch ? base * 1.5 : base);
-    var dur = Math.max(20, st.len) / 1000;
-    var c = actx();
-    if(!c){ return; }
-    try{
-      var o = c.createOscillator(), g = c.createGain();
-      o.type = w.t;
-      o.frequency.value = Math.max(60, f);
-      g.gain.setValueAtTime(dnxSndPegel(Math.min(100, vol * 100)), c.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + dur);
-      o.connect(g); g.connect(c.destination);
-      o.start(); o.stop(c.currentTime + dur + 0.02);
-    }catch(e){}
-  }
-  /* v3.89: solange gedrueckt/gehalten wird, tickt der Ton weiter
-     (pipipipipip) - erst beim Loslassen oder Weggehen ist Ruhe. */
-  var DNX_SND_TAKT = null;
-  function dnxSndStopp(){
-    if(DNX_SND_TAKT){ clearInterval(DNX_SND_TAKT); DNX_SND_TAKT = null; }
-  }
-  /* v3.91: Weiterticken nur bei Reglern und Ziehgriffen - bei Knoepfen,
-     Profilen, Haken und Menuepunkten genau EIN Pip pro Bedienung. */
-  function dnxSndDarfTicken(el){
-    if(!el || !el.matches){ return false; }
-    try{
-      return el.matches("input[type='range'], [role='slider'], .dnx-wfpro-slider, .dnx-wfpro-range, " +
-                        ".dnx-zt-griff, .dnx-zt-breite-griff, .dnx-eq-panel-sliders input");
-    }catch(e){ return false; }
-  }
-  function dnxSndHalten(el, ev){
-    dnxSndStopp();
-    var st = dnxSndFxState();
-    dnxSndSpielen(el, false);
-    if(!dnxSndDarfTicken(el)){ return; }               /* nur einmal pip */
-    if(DNX_SND_AUS || st.mute || st.vol <= 0){ return; }
-    var ms = Math.max(60, Math.min(400, st.len));
-    var x0 = ev && ev.clientX, y0 = ev && ev.clientY;
-    var start = Date.now();
-    DNX_SND_TAKT = setInterval(function(){
-      if(!el || !el.isConnected){ dnxSndStopp(); return; }
-      if(Date.now() - start > 3000){ dnxSndStopp(); return; }        /* Sicherung */
-      if(!document.body.contains(el)){ dnxSndStopp(); return; }
-      dnxSndSpielen(el, false);
-    }, ms);
-    if(x0 !== undefined){
-      window.__dnxSndWeg = function(mev){
-        if(Math.abs(mev.clientX - x0) > 300 || Math.abs(mev.clientY - y0) > 300){ dnxSndStopp(); }
-      };
-    }
-  }
-  /* Sicherheitsnetz: nie laenger als 3 s ticken */
-  setInterval(function(){
-    if(DNX_SND_TAKT && (!document.querySelector(":active"))){ dnxSndStopp(); }
-  }, 1200);
   function clickSound(ev){
-    if(!dnxSndBereit(ev)){ return; }
-    /* der Modus-Ton im Receiver spielt bereits - nicht doppelt */
-    if(Date.now() - (window.__dnxSndZuletzt || 0) < 100){ return; }
-    /* der Ton kam schon beim Draufdruecken - nicht doppelt */
-    if(Date.now() - (window.__dnxSndDruck || 0) < 400){ return; }
-    /* Label + Feld loesen zwei Klicks aus - nur einen Ton spielen */
-    var jetzt = Date.now();
-    if(jetzt - (window.__dnxSndKlick || 0) < 70){ return; }
-    var t = dnxSndZiel(ev);
-    if(!t){ return; }
-    window.__dnxSndKlick = jetzt;
-    var istSchalter = (t.tagName === "INPUT") || (t.tagName === "SELECT") ||
-                      /check|radio|range/.test(t.type || "") ||
-                      t.classList.contains("openwebrx-demodulator-button");
-    dnxSndSpielen(t, istSchalter);
+    var t = ev.target && ev.target.closest ? ev.target.closest("button") : null;
+    if(!t) return;
+    if(!t.closest("#openwebrx-panel-receiver") && !t.closest("#dnx-styler-ui")) return;
+    var v = (current.sound | 0) / 100 * 0.12;
+    if(v <= 0) return;
+    beep(t.classList.contains("openwebrx-demodulator-button") ? Math.round((current.pitch | 0) * 1.6) : (current.pitch | 0), 0.06, v);
   }
 
   function ensureDefaults(t){
@@ -11252,60 +10508,7 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     return t;
   }
   dnxPalLoad();
-  /* v6.0: gespeicherte Farbe/Dicke der roten Ziehlinien sofort setzen.
-     v6.21: fast weisse / graue Toenne sind als Linie auf dunklem Grund nicht
-     zu sehen (das Bild wirkt dann "hell weiss" statt rot) - sie werden
-     verworfen und die Berichtigung wird gespeichert, damit sie nicht
-     ueber das geteilte Standard-Profil zurueckkommt. */
-  try{
-    var farb0 = JSON.parse(localStorage.getItem("dnx.farben.v1") || "{}") || {};
-    var lfRo = String(farb0.linieFarbe || "");
-    function dnxLinieHaltbar(hex){
-      var m = /^#?([0-9a-fA-F]{6})$/.exec(String(hex || ""));
-      if(!m) return "";
-      var v = m[1].toLowerCase();
-      var r = parseInt(v.substr(0,2),16), g = parseInt(v.substr(2,2),16), b = parseInt(v.substr(4,2),16);
-      var mx = Math.max(r,g,b), mn = Math.min(r,g,b);
-      if(mx >= 210 && (mx - mn) <= 56) return "";      /* zu hell und zu blass */
-      return "#" + v;
-    }
-    var lf = dnxLinieHaltbar(lfRo) || "#ff2020";
-    var ld = parseInt(farb0.linieDicke, 10);
-    if(!(ld >= 1 && ld <= 8)){ ld = 3; }
-    var r0 = document.documentElement;
-    r0.style.setProperty("--dnx-linie-farbe", lf);
-    r0.style.setProperty("--dnx-linie-dicke", ld + "px");
-    if(lf.toLowerCase() !== lfRo.toLowerCase()){
-      farb0.linieFarbe = lf; farb0.linieDicke = ld;
-      try{ localStorage.setItem("dnx.farben.v1", JSON.stringify(farb0)); }catch(eS1){}
-      try{ localStorage.setItem("dnx_styler_linie_farbe", lf); }catch(eS2){}
-      try{ window.__dnxLinieKorrigiert = lfRo + " -> " + lf; }catch(eS3){}
-    }
-  }catch(eF0){}
   var current = ensureDefaults(load() || PRESETS.dnx);
-
-  /* v4.9: Zeitachse startet bei JEDEM Laden RECHTS.
-     Wer sie waehrend der Sitzung umstellt, behaelt die Wahl bis zum Neuladen. */
-  var DNX_SEITE_FEST = true;
-  try{
-    current.mt_seite = 1;
-    /* v4.8: hat der Nutzer mit L/R selbst gewaehlt, bleibt das erhalten */
-    try{
-      var zsWahl = localStorage.getItem("dnx.zeitachse.seite");
-      if(zsWahl){ current.mt_seite = (String(zsWahl).toUpperCase() === "L") ? 0 : 1; DNX_SEITE_FEST = false; }
-    }catch(eZW){}
-    if(current.mt === undefined){ current.mt = 1; }
-    /* Bereits bekannte Standards aus v6.23/v6.24 koennen fuer dieselbe
-       Zeitachse zwei Werte enthalten. Der gespeicherte Werkzeugzustand ist
-       massgeblich, solange der Nutzer ihn nicht persoenlich geaendert hat. */
-    try{
-      var zsSig = JSON.parse(localStorage.getItem("dnx_styler_std_signatur_v1") || "null");
-      var zsTools = JSON.parse(localStorage.getItem("dnx_styler_tools") || "null");
-      var zsGlobal = zsSig && zsSig[1] && zsSig[1].tools && zsSig[1].tools.t_zeitachse;
-      if((zsGlobal === 0 || zsGlobal === 1) && zsTools && zsTools.t_zeitachse === zsGlobal){ current.mt = zsGlobal; }
-    }catch(eZG){}
-    save(current);
-  }catch(e){}
   var ui = null;
 
   function ensureStyle(){
@@ -11316,403 +10519,6 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     document.head.appendChild(st);
   }
 
-  /* ---------------- Ordnung im Fenster: aufklappbare Abschnitte ------------- */
-  function dnxUiOrdnen(ui){
-    if(!ui || ui._dnxGeordnet){ return; }
-    ui._dnxGeordnet = true;
-
-    function kat(txt, id){
-      var t = String(txt || "").toLowerCase();
-      var i = String(id || "").toLowerCase();
-      if(/werkzeug/.test(t) || /dnx-tools-box/.test(i)) return "anzeige";
-      if(/wasserfall-palette|spektrum-farbe|^seite$|s-meter|pillen/.test(t)) return "anzeige";
-      if(/eigene einstellung|in der liste|teilen-server|gemeinsame einstellungen/.test(t)) return "teilen";
-      if(/dnx-share/.test(i)) return "teilen";
-      return "aussehen";
-    }
-
-    var titel = {
-      aussehen: "Aussehen & Farben",
-      anzeige:  "Anzeige & Werkzeuge",
-      teilen:   "Teilen"
-    };
-
-    var secs = {}, order = ["aussehen", "anzeige", "teilen"], k;
-    for(var q = 0; q < order.length; q++){
-      var kk = order[q];
-      var d = document.createElement("details");
-      d.className = "dnx-sec";
-      d.open = (kk === "aussehen");
-      var sum = document.createElement("summary");
-      sum.textContent = titel[kk];
-      d.appendChild(sum);
-      var body = document.createElement("div");
-      body.className = "dnx-sec-body";
-      d.appendChild(body);
-      secs[kk] = { det: d, body: body };
-    }
-
-    var kids = [];
-    for(var i = 0; i < ui.children.length; i++){ kids.push(ui.children[i]); }
-
-    var skip = function(el){
-      var id = el.id || "";
-      /* v6.15: die Kopfzeile (Titel + X) bleibt oben - sie gehoert NICHT in
-         einen Klappe-Block, sonst fehlt das X zum Schliessen */
-      if(el.classList && el.classList.contains("head")){ return true; }
-      return id === "dnx-styler-bar" || /^dnx-sec-/.test(id) || el.className === "dnx-sec";
-    };
-
-    var letzte = "aussehen";
-    for(var j = 0; j < kids.length; j++){
-      var el = kids[j];
-      if(skip(el)){ continue; }
-      if(el.tagName && el.tagName.toLowerCase() === "label"){
-        letzte = kat(el.textContent, el.id);
-        var ziel = secs[letzte].body;
-        ziel.appendChild(el);
-        var nxt = kids[j + 1];
-        if(nxt && !skip(nxt)){
-          ziel.appendChild(nxt);
-          j++;
-        }
-        continue;
-      }
-      var k2 = kat(el.textContent, el.id);
-      if(el.id && /^dnx-share/.test(el.id)) k2 = "teilen";
-      if(/^dnx-tools-box$/.test(el.id)) k2 = "anzeige";
-      if(k2 === "aussehen" && el.id && /^dnx-tool-/.test(el.id)) k2 = "anzeige";
-      secs[k2].body.appendChild(el);
-    }
-
-    // Abschnitte einsortieren: Titel der Seite bleibt oben
-    var erste = ui.querySelector(".dnx-sec");
-    for(var r = 0; r < order.length; r++){
-      ui.appendChild(secs[order[r]].det);
-    }
-  }
-
-  /* DNX_UI_BLOECKE_START
-     v3.88: Styler aufgeraeumt in eigene Bloecke -
-     Werkzeuge an/aus nach oben, Zeitachse zusammen, Speichern/Standard/Teilen zusammen. */
-  function dnxUiBloecke(ui){
-    if(!ui || ui._dnxBloecke){ return; }
-    ui._dnxBloecke = true;
-
-    if(!document.getElementById("dnx-blk-style")){
-      var css = document.createElement("style");
-      css.id = "dnx-blk-style";
-      css.textContent = ""
-        + ".dnx-blk{margin:8px 0;padding:8px 9px 10px;border:1px solid rgba(78,224,138,.5);border-radius:10px;"
-        + "background:linear-gradient(180deg,rgba(19,36,28,.96),rgba(11,21,17,.96));"
-        + "box-shadow:0 1px 0 rgba(255,255,255,.05) inset;}"
-        + ".dnx-blk>summary.dnx-blk-h{cursor:pointer;list-style:none;color:#8dffb0;"
-        + "font:800 12.5px Arial,Helvetica,sans-serif;letter-spacing:.3px;"
-        + "margin:0 0 7px;padding:0 0 5px;border-bottom:1px solid rgba(78,224,138,.28);"
-        + "display:flex;align-items:center;gap:6px;user-select:none;}"
-        + ".dnx-blk>summary.dnx-blk-h::-webkit-details-marker{display:none;}"
-        + ".dnx-blk>summary.dnx-blk-h::before{content:'\\25B8';display:inline-block;width:12px;"
-        + "color:#4ee08a;font-size:11px;flex:0 0 auto;}"
-        + ".dnx-blk[open]>summary.dnx-blk-h::before{content:'\\25BE';}"
-        + ".dnx-blk>summary.dnx-blk-h::after{content:'';width:7px;height:7px;border-radius:2px;"
-        + "background:#4ee08a;box-shadow:0 0 7px rgba(78,224,138,.8);flex:0 0 auto;}"
-        + ".dnx-blk-body{padding:0;}"
-        + "#dnx-farben-box .dnx-farb-r{display:flex;align-items:center;gap:8px;margin:4px 0;}"
-        + "#dnx-farben-box .dnx-farb-r>label{flex:0 0 132px;color:#bfe7cd;font:600 11px Arial,Helvetica,sans-serif;}"
-        + "#dnx-farben-box .dnx-farb-r>select{flex:1 1 auto;min-width:90px;max-width:100%;height:20px;background:#333;color:#eaf7ef;"
-        + "border:1px solid rgba(255,255,255,.22);border-radius:4px;font:9pt 'DejaVu Sans',Arial,sans-serif;}"
-        /* v6.6: Auswahlfelder brauchen die volle Breite - sonst stand nur
-           "DNX Klassik (" da und man konnte die Palette nicht erkennen. */
-        + "#dnx-farben-box .dnx-farb-r.dnx-sel{display:block;margin:8px 0 2px;}"
-        + "#dnx-farben-box .dnx-farb-r.dnx-sel>label{display:block;flex:none;margin-bottom:2px;}"
-        + "#dnx-farben-box .dnx-farb-r.dnx-sel>select{display:block;width:100%;max-width:100%;height:24px;font-size:12px;"
-        + "text-overflow:ellipsis;}"
-        + "#dnx-farben-box .dnx-farb-nr{margin-left:4px;color:#7fd8a0;font:600 10px Arial,Helvetica,sans-serif;}"
-        + "#dnx-farben-box .dnx-farb-r>input[type=range]{flex:1 1 auto;min-width:60px;height:20px;}"
-        + "#dnx-farben-box .dnx-farb-r>input[type=color]{flex:0 0 46px;height:20px;padding:0;border:1px solid rgba(255,255,255,.25);"
-        + "border-radius:4px;background:#333;}"
-        + "#dnx-farben-box .dnx-farb-w{flex:0 0 58px;text-align:right;color:#9fd8b4;font:600 10px Arial,Helvetica,sans-serif;}"
-        + "#dnx-farben-box .dnx-farb-r.dnx-sel{display:block !important;margin:8px 0 2px;}"
-        + "#dnx-farben-box .dnx-farb-r.dnx-sel>label{display:block !important;flex:none;margin-bottom:2px;}"
-        + "#dnx-farben-box .dnx-farb-r.dnx-sel>select{display:block !important;width:100% !important;max-width:100% !important;"
-        + "height:24px;font-size:12px;box-sizing:border-box;}"
-        /* v6.7: Farbstreifen + Klartext unter jedem Auswahlfeld. Damit sieht
-           man sofort, welche Palette gewaehlt ist - auch wenn der Name im
-           Feld abgeschnitten waere. */
-        + "#dnx-farben-box .dnx-farb-streifen{height:12px;margin:3px 0 1px;border-radius:3px;"
-        + "border:1px solid rgba(255,255,255,.25);background:#222;}"
-        + "#dnx-farben-box .dnx-farb-jetzt{color:#8dffb8;font:600 10.5px Arial,Helvetica,sans-serif;"
-        + "line-height:1.25;word-break:break-word;margin-bottom:4px;}"
-        + "#dnx-farben-box .dnx-farb-btns{display:flex;gap:6px;margin-top:8px;}"
-        + "#dnx-farben-box .dnx-farb-btns button{flex:1 1 0;height:22px;border-radius:5px;cursor:pointer;"
-        + "background:#1f8f52;color:#f2fff8;border:1px solid rgba(255,255,255,.25);font:700 10px Arial,Helvetica,sans-serif;}"
-        + "#dnx-farben-box .dnx-farb-btns button:hover{background:#25a862;}"
-        + ".dnx-blk:not([open])>.dnx-blk-body{display:none;}"
-        + ".dnx-blk label{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:3px 0;}"
-        + ".dnx-blk label > input:not([type=checkbox]):not([type=range]),.dnx-blk label > select{flex:1 1 auto;min-width:0;}"
-        + ".dnx-blk .row{display:flex;flex-wrap:wrap;gap:6px;margin:5px 0 0;}"
-        + ".dnx-blk .dnx-blk-grp{margin:6px 0 0;padding-top:4px;border-top:1px dashed rgba(78,224,138,.22);}"
-        + ".dnx-blk .dnx-grp{color:#9dffc4;font:800 11px Arial,Helvetica,sans-serif;margin:2px 0 4px;}"
-        + ".dnx-blk .dnx-feld{margin:4px 0;padding:4px 6px;border-radius:7px;background:rgba(255,255,255,.04);}"
-        + ".dnx-blk .dnx-feld-kopf{display:flex;justify-content:space-between;font-weight:700;color:#d7f5e6;}"
-        + ".dnx-blk .dnx-feld-hilfe{opacity:.6;font-size:10px;line-height:1.25;margin:1px 0 3px;}"
-        + ".dnx-blk .head2{margin:2px 0 6px;}"
-        + ".dnx-blk + .dnx-sec{margin-top:10px;}"
-        + ".dnx-sec{border:1px solid rgba(120,140,150,.35);border-radius:10px;margin:8px 0;"
-        + "background:linear-gradient(180deg,rgba(26,32,30,.92),rgba(15,20,18,.92));overflow:hidden;}"
-        + ".dnx-sec > summary{cursor:pointer;padding:8px 10px;font:800 12px Arial,Helvetica,sans-serif;"
-        + "color:#cfe9dd;background:linear-gradient(180deg,rgba(46,62,55,.95),rgba(28,38,34,.95));"
-        + "list-style:none;display:flex;align-items:center;gap:6px;}"
-        + ".dnx-sec > summary::-webkit-details-marker{display:none;}"
-        + ".dnx-sec > summary::before{content:'\25B8';color:#4ee08a;font-size:11px;}"
-        + ".dnx-sec[open] > summary::before{content:'\25BE';}"
-        + ".dnx-sec > summary:hover{color:#eafff4;}"
-        + ".dnx-sec-body{padding:7px 9px 9px;}"
-;
-      document.head.appendChild(css);
-    }
-
-    /* v4.7: jeder Block ist auf-/zuklappbar (Pfeil), Zustand wird gemerkt */
-    function mk(id, titel, offen){
-      var d = document.createElement("details");
-      d.id = id;
-      d.className = "dnx-blk";
-      var h = document.createElement("summary");
-      h.className = "dnx-blk-h";
-      h.textContent = titel;
-      d.appendChild(h);
-      var body = document.createElement("div");
-      body.className = "dnx-blk-body";
-      d.appendChild(body);
-      d._body = body;
-      var gemerkt = null;
-      try{ gemerkt = localStorage.getItem("dnx.blk." + id); }catch(e){}
-      d.open = (gemerkt === null) ? !!offen : (gemerkt === "1");
-      d.addEventListener("toggle", function(){
-        try{ localStorage.setItem("dnx.blk." + id, d.open ? "1" : "0"); }catch(e){}
-      });
-      return d;
-    }
-
-    var bar = document.getElementById("dnx-styler-bar");
-    function einfuegen(el, nachEl){
-      if(nachEl && nachEl.parentNode === ui){ ui.insertBefore(el, nachEl.nextSibling); return; }
-      if(bar && bar.parentNode === ui){ ui.insertBefore(el, bar.nextSibling); return; }
-      ui.insertBefore(el, ui.firstChild);
-    }
-
-    /* ---- A) Werkzeuge an/aus ganz nach oben ---- */
-    var bTools = mk("dnx-blk-tools", "Werkzeuge an / aus", true);
-    var tools = document.getElementById("dnx-tools-box");
-    if(tools){
-      /* Werkzeug-Box hat schon einen eigenen Titel - hier nur einbetten */
-      tools.style.cssText = "margin:0;padding:0;border:0;border-radius:0;background:none;";
-      if(tools.firstElementChild){ tools.firstElementChild.style.display = "none"; }
-      bTools._body.appendChild(tools);
-    }
-    einfuegen(bTools, bar);
-
-    /* ---- B) Zeitachse in einen Block ---- */
-    var bZeit = mk("dnx-blk-zeit", "Zeitachse", false);
-    var ztEls = [];
-    var kandidaten = ui.querySelectorAll('[data-dnx-capability="timeline"]');
-    for(var i = 0; i < kandidaten.length; i++){ ztEls.push(kandidaten[i]); }
-    for(var z = 0; z < ztEls.length; z++){
-      var el = ztEls[z];
-      if(!el || el._dnxZtWeg){ continue; }
-      var lab = el.closest ? el.closest("label") : null;
-      if(lab && ui.contains(lab) && !lab._dnxZtWeg && lab.querySelectorAll('[data-dnx-capability="timeline"]').length === 1){
-        lab._dnxZtWeg = true;
-        bZeit._body.appendChild(lab);
-        continue;
-      }
-      if(!lab){
-        var prev = el.previousElementSibling;
-        if(prev && prev.tagName === "LABEL" && !prev._dnxZtWeg && !prev.querySelector('[data-dnx-capability="timeline"]')){
-          prev._dnxZtWeg = true;
-          bZeit._body.appendChild(prev);
-        }
-      }
-      el._dnxZtWeg = true;
-      bZeit._body.appendChild(el);
-    }
-    /* v4.7: ALLES ab der Gruppen-Ueberschrift "Zeitachse" bis zur naechsten
-       Gruppe in den Zeitachsen-Block - also Zeitabstand, Schriftgroesse,
-       Hintergrund-Deckkraft, Text/Marken-Deckkraft, Rueckschau max. Minuten
-       samt der Erklaertexte dazwischen. */
-    var grps = ui.querySelectorAll(".dnx-grp");
-    for(var g = 0; g < grps.length; g++){
-      if(!/zeitachse/i.test(grps[g].textContent || "")){ continue; }
-      var feldNeu = document.createElement("div");
-      feldNeu.className = "dnx-blk-grp";
-      feldNeu.appendChild(grps[g]);
-      var n = grps[g].nextElementSibling;
-      while(n){
-        var cn = String(n.className || "");
-        if(/dnx-grp/.test(cn) || /dnx-sec/.test(cn) || /dnx-blk/.test(cn)){ break; }
-        if(n.tagName === "DETAILS"){ break; }
-        var nxt = n.nextElementSibling;
-        feldNeu.appendChild(n);
-        n = nxt;
-      }
-      if(feldNeu.children.length > 1){ bZeit._body.appendChild(feldNeu); }
-      break;
-    }
-
-    /* v4.7b: Zeitachsen-Regler auch dann holen, wenn sie (durch die
-       Abschnitts-Ordnung) schon in "Anzeige & Werkzeuge" gelandet sind. */
-    var ZT_NAMEN = /^(zeitabstand|schriftgr|hintergrund-deckkraft|text\/marken-deckkraft|r(ue|\u00fc)ckschau)/i;
-    function dnxUml(t){
-      return String(t || "").toLowerCase()
-        .replace(/\u00e4/g, "ae").replace(/\u00f6/g, "oe").replace(/\u00fc/g, "ue").replace(/\u00df/g, "ss");
-    }
-    var alleFelder = ui.querySelectorAll(".dnx-feld");
-    for(var af = 0; af < alleFelder.length; af++){
-      var nmEl = alleFelder[af].querySelector(".dnx-feld-name");
-      var nmTxt = nmEl ? dnxUml(String(nmEl.textContent || "").trim()) : "";
-      if(nmTxt && ZT_NAMEN.test(nmTxt)){
-        bZeit._body.appendChild(alleFelder[af]);
-      }
-    }
-    /* v4.8: alles, was zwischen den Zeitachsen-Reglern steht (Erklaertexte,
-       Zwischenueberschriften) mit in den Zeitachsen-Block nehmen */
-    var ztNamen = /^(zeitabstand|schriftgro|hintergrund-deckkraft|text\/marken-deckkraft|rueckschau)/;
-    var ztFelder = bZeit._body.querySelectorAll(".dnx-feld");
-    for(var zf = 0; zf < ztFelder.length; zf++){
-      var nxt2 = ztFelder[zf].nextElementSibling;
-      while(nxt2 && !/dnx-feld/.test(String(nxt2.className || "")) && !/dnx-blk/.test(String(nxt2.className || ""))){
-        var nn = nxt2.nextElementSibling;
-        bZeit._body.appendChild(nxt2);      /* haengt sich hinten an - Reihenfolge unten korrigieren */
-        nxt2 = nn;
-      }
-    }
-    /* Reihenfolge im Zeitachsen-Block wiederherstellen: Regler zuerst, dann Texte */
-    (function(){
-      var felder = [], sonst = [], ch = bZeit._body.children, i2;
-      for(i2 = 0; i2 < ch.length; i2++){
-        if(/dnx-feld/.test(String(ch[i2].className || ""))){ felder.push(ch[i2]); }
-        else if(/dnx-blk-grp/.test(String(ch[i2].className || ""))){ /* Gruppenkopf bleibt vorn */ }
-        else { sonst.push(ch[i2]); }
-      }
-      for(i2 = 0; i2 < sonst.length; i2++){ bZeit._body.appendChild(sonst[i2]); }
-    })();
-    /* Gruppen-Ueberschrift "Zeitachse" ganz nach oben im Block */
-    var zg = null, grpsB = ui.querySelectorAll(".dnx-grp");
-    for(var gb = 0; gb < grpsB.length; gb++){
-      if(/zeitachse/i.test(grpsB[gb].textContent || "")){ zg = grpsB[gb]; break; }
-    }
-    if(zg){
-      if(!zg.parentNode || zg.parentNode !== bZeit._body){
-        var wrapG = document.createElement("div");
-        wrapG.className = "dnx-blk-grp";
-        wrapG.appendChild(zg);
-        bZeit._body.insertBefore(wrapG, bZeit._body.firstChild);
-      }
-    }
-
-    /* Hinweiszeile "Ziehen an der Leiste ..." mitnehmen */
-    var hinweise = ui.querySelectorAll("div");
-    for(var h = 0; h < hinweise.length; h++){
-      if(/Ziehen an der Leiste|Doppelklick = wieder live/.test(hinweise[h].textContent || "") &&
-         hinweise[h].children.length === 0 && !bZeit.contains(hinweise[h])){
-        bZeit._body.appendChild(hinweise[h]);
-        break;
-      }
-    }
-    if(bZeit._body.children.length > 1){ einfuegen(bZeit, bTools); }
-
-    /* ---- C) Speichern / Liste / Standard  und  Teilen als ZWEI Bloecke ---- */
-    var bSpeichern = mk("dnx-blk-speichern", "Speichern \u00b7 Liste \u00b7 Standard", true);
-    var bTeilen = mk("dnx-blk-teilen", "Teilen", true);
-
-    /* Speicher-Zeile (Speichern / Export / Import / Reset / Schliessen) */
-    var rows = ui.querySelectorAll("div.row");
-    for(var r = 0; r < rows.length; r++){
-      var txt = rows[r].textContent || "";
-      if(/Speichern/.test(txt) && /Export/.test(txt) && /Import/.test(txt)){
-        bSpeichern._body.appendChild(rows[r]);
-        break;
-      }
-    }
-
-    /* Abschnitt "Teilen" aufloesen: Server-Kram in den Teilen-Block,
-       Name/Liste/Speichern-Kram in den Speichern-Block */
-    var dets = ui.querySelectorAll("details.dnx-sec");
-    for(var d = 0; d < dets.length; d++){
-      var sum = dets[d].querySelector("summary");
-      if(sum && /teilen/i.test(sum.textContent || "")){
-        var body = dets[d].querySelector(".dnx-sec-body");
-        if(body){
-          var kids = [];
-          for(var c = 0; c < body.children.length; c++){ kids.push(body.children[c]); }
-          for(var c2 = 0; c2 < kids.length; c2++){
-            var kt = String(kids[c2].textContent || "");
-            if(/teilen-server|gemeinsame einstellungen|geteilte einstellung|eintrag\s*l\u00f6schen|teilen:|auf server speichern|liste laden/i.test(kt)){
-              bTeilen._body.appendChild(kids[c2]);
-            } else {
-              bSpeichern._body.appendChild(kids[c2]);
-            }
-          }
-        }
-        if(dets[d].parentNode){ dets[d].parentNode.removeChild(dets[d]); }
-        break;
-      }
-    }
-
-    /* Rest-Reihenfolge: Speichern, Teilen hinter die Zeitachse haengen */
-    var anker = (bZeit.parentNode === ui) ? bZeit : bTools;
-    einfuegen(bSpeichern, anker);
-    if(bTeilen._body.children.length){ einfuegen(bTeilen, bSpeichern); }
-
-    /* v4.8: "Aussehen & Farben" und "Anzeige & Werkzeuge" stehen als eigene
-       Klapp-Abschnitte UNTER den Bloecken (nicht mehr im Speichern-Block) */
-    var secs2 = ui.querySelectorAll("details.dnx-sec");
-    for(var s2 = 0; s2 < secs2.length; s2++){
-      if(secs2[s2].id && /^dnx-sec-/.test(secs2[s2].id)){ continue; }
-      ui.appendChild(secs2[s2]);
-    }
-
-    /* rote Ziehlinie GANZ OBEN halten - notfalls mehrfach nachfassen */
-    function linieNachOben(){
-      var bEl = document.getElementById("dnx-styler-bar");
-      if(bEl && bEl.parentNode === ui && ui.firstElementChild !== bEl){
-        ui.insertBefore(bEl, ui.firstElementChild);
-      }
-    }
-    linieNachOben();
-    /* Kopfzeile "DNX Styler" bleibt direkt unter der roten Linie.
-       v6.15: frueher musste der Kopf ein direktes Kind des Fensters sein -
-       war er durch die Bloecke in eine Klappe gerutscht, blieb er dort stecken
-       und das X war verschwunden. Jetzt wird er zurueckgeholt, egal wo er steht. */
-    function kopfNachOben(){
-      var u2 = document.getElementById("dnx-styler-ui");
-      if(!u2){ return; }
-      var bEl = document.getElementById("dnx-styler-bar");
-      var kopf = u2.querySelector(".head");
-      if(!kopf){ return; }
-      if(!bEl || bEl.parentNode !== u2){ return; }
-      var ref = bEl.nextElementSibling;
-      if(kopf.parentNode === u2 && (ref === kopf || (!ref && !kopf.previousElementSibling))){ return; }
-      if(ref === kopf){ return; }
-      try{ u2.insertBefore(kopf, ref || null); }catch(e){}
-    }
-    kopfNachOben();
-    [0, 60, 250, 800, 1600].forEach(function(ms){ setTimeout(function(){ linieNachOben(); kopfNachOben(); }, ms); });
-    if(!dnxUiBloecke._wache){
-      dnxUiBloecke._wache = setInterval(function(){
-        var u2 = document.getElementById("dnx-styler-ui");
-        if(!u2 || u2.style.display === "none"){ return; }
-        var bEl = document.getElementById("dnx-styler-bar");
-        if(bEl && bEl.parentNode === u2 && u2.firstElementChild !== bEl){
-          u2.insertBefore(bEl, u2.firstElementChild);
-        }
-        /* v6.15: Kopf mit X ebenfalls oben halten (0,7 s nach jedem Umbau) */
-        try{ kopfNachOben(); }catch(e){}
-      }, 700);
-    }
-  }
-  /* DNX_UI_BLOECKE_END */
-
   function field(lbl, wrap, input){
     var l = document.createElement("label");
     l.textContent = lbl;
@@ -11722,194 +10528,66 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
   }
 
   /* Fenster-Chrome: rote Griff-Leiste (verschieben) + Resize-Griffe wie im Receiver */
-  /* v6.8: Ziehen und Groessern des Styler-Fensters neu gebaut.
-     Fehler vorher:
-       - beim Groessern wurden right/bottom auf "auto" gesetzt, aber links/oben
-         nie gesetzt -> das Fenster sprang beim ersten Ziehen an eine andere
-         Stelle ("verlaengern geht schief")
-       - die Ecken waren unsichtbar (transparent) -> "keine Ecken"
-       - beim Scrollen im Fenster wanderten die Griffe mit dem Inhalt weg
-     Jetzt: Ecken und Kanten sind sichtbar, das Fenster bleibt beim Ziehen an
-     seiner Stelle (nur die gezogene Kante wandert), und die Griffe bleiben
-     immer am Rand des Fensters. */
   function makeDraggable(u){
     var bar = document.createElement("div");
     bar.id = "dnx-styler-bar";
     u.insertBefore(bar, u.firstChild);
-
-    var MINW = 260, MINH = 200;
-    var griffe = [];
-
-    function maxW(){ return Math.max(MINW, (window.innerWidth || 1024) - 8); }
-    function maxH(){ return Math.max(MINH, (window.innerHeight || 768) - 8); }
-
     function startMove(ev){
-      if(ev.button !== undefined && ev.button !== 0){ return; }
       ev.preventDefault();
       var r = u.getBoundingClientRect();
       var dx = ev.clientX - r.left, dy = ev.clientY - r.top;
-      u.style.left = Math.round(r.left) + "px"; u.style.top = Math.round(r.top) + "px";
+      u.style.left = r.left + "px"; u.style.top = r.top + "px";
       u.style.right = "auto"; u.style.bottom = "auto";
       function mv(e){
-        var l = Math.max(0, Math.min(e.clientX - dx, (window.innerWidth || 1024) - r.width));
-        var t = Math.max(0, Math.min(e.clientY - dy, (window.innerHeight || 768) - 40));
-        u.style.left = Math.round(l) + "px";
-        u.style.top = Math.round(t) + "px";
-        griffeSync();
+        u.style.left = Math.max(0, e.clientX - dx) + "px";
+        u.style.top = Math.max(0, e.clientY - dy) + "px";
         dnxFrameSync();
       }
-      function up(){
-        document.removeEventListener("mousemove", mv);
-        document.removeEventListener("mouseup", up);
-      }
+      function up(){ document.removeEventListener("mousemove", mv); document.removeEventListener("mouseup", up); }
       document.addEventListener("mousemove", mv);
       document.addEventListener("mouseup", up);
     }
     bar.addEventListener("mousedown", startMove);
-
-    function startResize(dir, ev){
-      if(ev.button !== undefined && ev.button !== 0){ return; }
-      ev.preventDefault();
-      ev.stopPropagation();
-      var r0 = u.getBoundingClientRect();
-      /* Ausgangslage FEST schreiben - sonst springt das Fenster, weil
-         right/bottom auf auto gesetzt wird, links/oben aber fehlen */
-      u.style.left = Math.round(r0.left) + "px";
-      u.style.top = Math.round(r0.top) + "px";
-      u.style.width = Math.round(r0.width) + "px";
-      u.style.height = Math.round(r0.height) + "px";
-      u.style.right = "auto"; u.style.bottom = "auto";
-      u.style.maxHeight = "none"; u.style.maxWidth = "none";
-      var sx = ev.clientX, sy = ev.clientY;
-      function mv(e){
-        var dx = e.clientX - sx, dy = e.clientY - sy;
-        var l = r0.left, t = r0.top, w = r0.width, h = r0.height;
-        if(dir === "w" || dir === "nw" || dir === "sw"){
-          w = Math.max(MINW, Math.min(maxW(), r0.width - dx));
-          l = r0.left + (r0.width - w);
+    function resizeFn(dir){
+      return function(r0, e){
+        var dx = e.clientX - r0.left, dy = e.clientY - r0.top;
+        var out = {};
+        if(dir.indexOf("e") !== -1){ out.w = Math.max(240, r0.width + dx); }
+        if(dir.indexOf("s") !== -1){ out.h = Math.max(220, r0.height + dy); }
+        if(dir.indexOf("w") !== -1){
+          var w = Math.max(240, r0.width - dx);
+          out.w = w; out.l = r0.left + (r0.width - w);
         }
-        if(dir === "e" || dir === "ne" || dir === "se"){
-          w = Math.max(MINW, Math.min(maxW(), r0.width + dx));
+        if(dir.indexOf("n") !== -1){
+          var h2 = Math.max(220, r0.height - dy);
+          out.h = h2; out.t = r0.top + (r0.height - h2);
         }
-        if(dir === "n" || dir === "nw" || dir === "ne"){
-          h = Math.max(MINH, Math.min(maxH(), r0.height - dy));
-          t = r0.top + (r0.height - h);
-        }
-        if(dir === "s" || dir === "sw" || dir === "se"){
-          h = Math.max(MINH, Math.min(maxH(), r0.height + dy));
-        }
-        l = Math.max(0, Math.min(l, (window.innerWidth || 1024) - w));
-        t = Math.max(0, Math.min(t, (window.innerHeight || 768) - h));
-        u.style.left = Math.round(l) + "px";
-        u.style.top = Math.round(t) + "px";
-        u.style.width = Math.round(w) + "px";
-        u.style.height = Math.round(h) + "px";
-        griffeSync();
-        dnxFrameSync();
-      }
-      function up(){
-        document.removeEventListener("mousemove", mv);
-        document.removeEventListener("mouseup", up);
-        try{ localStorage.setItem("dnx.styler.groesse", JSON.stringify({
-          w: Math.round(u.getBoundingClientRect().width),
-          h: Math.round(u.getBoundingClientRect().height)
-        })); }catch(eG){}
-      }
-      document.addEventListener("mousemove", mv);
-      document.addEventListener("mouseup", up);
+        return out;
+      };
     }
-
-    /* v6.9: Die Griffe werden fest am Bildschirm ausgerichtet (position:fixed).
-       Damit wandern sie beim Scrollen im Fenster nicht weg und sitzen immer
-       genau auf der Kante des Fensters - unabhaengig davon, wann es gebaut
-       oder eingeblendet wird. */
-    var ECKEN = ["nw", "ne", "sw", "se"], KANTEN = ["n", "e", "s", "w"];
-    var GR = 14;                       /* Groesse der Eckgriffe */
-    function setz(el, l, t, w, h){
-      var li = Math.round(l) + "px", to = Math.round(t) + "px";
-      if(el.style.left !== li){ el.style.left = li; }
-      if(el.style.top !== to){ el.style.top = to; }
-      if(w !== undefined){
-        var wi = Math.max(6, Math.round(w)) + "px";
-        if(el.style.width !== wi){ el.style.width = wi; }
-      }
-      if(h !== undefined){
-        var hi = Math.max(6, Math.round(h)) + "px";
-        if(el.style.height !== hi){ el.style.height = hi; }
-      }
-    }
-    function griffeSync(){
-      if(!u || !u.isConnected){ return; }
-      var r;
-      try{ r = u.getBoundingClientRect(); }catch(eR){ return; }
-      var cs = null;
-      try{ cs = getComputedStyle(u); }catch(eC){ cs = null; }
-      var sichtbar = r.width > 60 && r.height > 60 && cs && cs.display !== "none" && cs.visibility !== "hidden";
-      for(var i = 0; i < griffe.length; i++){
-        var gi = griffe[i];
-        if(!sichtbar){
-          if(gi.style.display !== "none"){ gi.style.display = "none"; }
-          continue;
-        }
-        if(gi.style.display === "none"){ gi.style.display = "block"; }
-        var d = gi.__dir;
-        if(d === "nw"){ setz(gi, r.left + 2, r.top + 2, GR, GR); }
-        else if(d === "ne"){ setz(gi, r.right - 2 - GR, r.top + 2, GR, GR); }
-        else if(d === "sw"){ setz(gi, r.left + 2, r.bottom - 2 - GR, GR, GR); }
-        else if(d === "se"){ setz(gi, r.right - 2 - GR, r.bottom - 2 - GR, GR, GR); }
-        else if(d === "n"){ setz(gi, r.left + 18, r.top - 3, r.width - 36, 8); }
-        else if(d === "s"){ setz(gi, r.left + 18, r.bottom - 5, r.width - 36, 8); }
-        else if(d === "w"){ setz(gi, r.left - 3, r.top + 18, 8, r.height - 36); }
-        else { setz(gi, r.right - 5, r.top + 18, 8, r.height - 36); }
-      }
-    }
-    try{ window.__dnxStylerGriffeSync = griffeSync; }catch(eGS){}
-
-    /* v6.10: Die Griffe haengen NICHT mehr im Styler-Fenster selbst.
-       dnxUiOrdnen() hat sie sonst in einen zugeklappten Abschnitt verschoben -
-       dadurch waren sie weg und nicht klickbar ("keine Ecken"). Jetzt sitzen
-       sie in einem eigenen Container direkt am <body>. */
-    var lage = document.getElementById("dnx-styler-griffe");
-    if(!lage){
-      lage = document.createElement("div");
-      lage.id = "dnx-styler-griffe";
-      (document.body || document.documentElement).appendChild(lage);
-    }
-    lage.innerHTML = "";
-
-    ECKEN.concat(KANTEN).forEach(function(dir){
+    ["e", "s", "se", "ne", "nw", "sw"].forEach(function(dir){
       var h = document.createElement("div");
-      h.className = "dnx-srh dnx-srh-" + dir;
-      h.__dir = dir;
-      h.setAttribute("title", "Groesse aendern (Doppelklick = zuruecksetzen)");
-      h.addEventListener("mousedown", function(ev){ startResize(dir, ev); });
-      h.addEventListener("dblclick", function(){
-        /* Doppelklick auf eine Ecke: Groesse zuruecksetzen */
-        u.style.width = ""; u.style.height = ""; u.style.maxHeight = "";
-        u.style.left = ""; u.style.top = "";
-        u.style.right = "12px"; u.style.bottom = "12px";
-        griffeSync();
+      h.className = "rh rh-" + dir;
+      var fn = resizeFn(dir);
+      h.addEventListener("mousedown", function(ev){
+        ev.preventDefault();
+        var r0 = u.getBoundingClientRect();
+        u.style.right = "auto"; u.style.bottom = "auto";
+        u.style.maxHeight = "none";
+        function mv(e){
+          var d = fn(r0, e);
+          if(d.l !== undefined) u.style.left = d.l + "px";
+          if(d.t !== undefined) u.style.top = d.t + "px";
+          if(d.w !== undefined) u.style.width = d.w + "px";
+          if(d.h !== undefined) u.style.height = d.h + "px";
+          dnxFrameSync();
+        }
+        function up(){ document.removeEventListener("mousemove", mv); document.removeEventListener("mouseup", up); }
+        document.addEventListener("mousemove", mv);
+        document.addEventListener("mouseup", up);
       });
-      lage.appendChild(h);
-      griffe.push(h);
+      u.appendChild(h);
     });
-
-    /* eigene Groesse (falls der Nutzer sie schon einmal gezogen hat) */
-    try{
-      var g = JSON.parse(localStorage.getItem("dnx.styler.groesse") || "null");
-      if(g && g.w > 200 && g.h > 150){
-        u.style.width = Math.min(g.w, maxW()) + "px";
-        u.style.height = Math.min(g.h, maxH()) + "px";
-        u.style.right = "12px"; u.style.bottom = "12px";
-      }
-    }catch(eGr){}
-
-    u.addEventListener("scroll", griffeSync, { passive: true });
-    window.addEventListener("resize", griffeSync);
-    try{ if(window.ResizeObserver){ new ResizeObserver(griffeSync).observe(u); } }catch(eRO){}
-    /* billiger Dauerabgleich: deckt Einblenden, Scrollen und Fremd-Aenderungen ab */
-    try{ setInterval(griffeSync, 400); }catch(eIV){ window.addEventListener("load", griffeSync); }
-    griffeSync();
   }
 
   /* ---- v38: Wasserfall-Palette und Spektrum-Farbe (nur im Browser, keine Core-Aenderung) ----
@@ -11929,7 +10607,6 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     dnxmono:    [0x000000, 0x222222, 0x555555, 0x999999, 0xffffff],
     dnxwarm:    [0x000000, 0x1a1410, 0x4a3524, 0x8a6a3a, 0xd8b06a, 0xfff0c8, 0xffffff]
   };
-  try{ window.DNX_WF = DNX_WF; window.DNX_WF_DNX = DNX_WF_DNX; window.DNX_WF_ORIG = DNX_WF_ORIG; }catch(eWX){}
   var DNX_WF_ORIG = [
     ["default", "Standard (Server-Einstellung)"],
     ["turbo", "Turbo (Original)"],
@@ -11949,73 +10626,6 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     ["dnxmono", "DNX Mono hell"],
     ["dnxwarm", "DNX Warm"]
   ];
-  /* ---- v6.16: die echten Paletten des Empfaengers werden abgelesen ---------
-     Bisher stand oben eine feste Liste "OpenWebRX-Paletten". Der Empfaenger
-     kennt davon aber einige gar nicht (z.B. "wave"/Evening Wave) und hat
-     dafuer weitere (z.B. die SDRangel-Paletten). Folge: die unteren Eintraege
-     in "Wasserfall (2D)" und im 3D-Hintergrund hatten keine Wirkung.
-     Jetzt wird die Gruppe live aus UI.wfThemes gebaut - jeder Eintrag, der
-     angezeigt wird, ist auch wirklich vorhanden. */
-  var DNX_WF_ORIG_NAMEN = {
-    "default": "Standard (Server-Einstellung)", "turbo": "Turbo (Original)",
-    "ha7ilm": "Legacy HA7ILM (Original)", "teejeez": "TeeJeez (Original)",
-    "ocean": "Blue Ocean (Original)", "eclipse": "Eclipse (Original)",
-    "wave": "Evening Wave (Original)", "deeppurple": "Deep Purple (Original)",
-    "espectral": "Espectral (Original)", "qcx": "QCX (Original)", "swift": "Swift (Original)"
-  };
-  function dnxWfIstDnx(id){
-    var q;
-    for(q = 0; q < DNX_WF_DNX.length; q++){ if(DNX_WF_DNX[q][0] === id){ return true; } }
-    return false;
-  }
-  function dnxWfSchick(id){
-    var s = String(id);
-    if(/^sdrangel_/.test(s)){ return "SDRangel " + s.slice(9).charAt(0).toUpperCase() + s.slice(10).replace(/_/g, " ") + " (Empfänger)"; }
-    if(/_/.test(s)){ return "Empfänger " + s.replace(/_/g, " "); }
-    return "Empfänger " + s;
-  }
-  /* die Original-Stuetzpunkte in DNX_WF nachtragen - davon hangen Farbverlauf,
-     Farbstreifen, 3D-Hintergrund und Spektrum-Hintergrund ab */
-  function dnxWfOrigUebernehmen(){
-    var n = 0, k2;
-    try{
-      if(!window.UI || !UI.wfThemes){ return 0; }
-      for(k2 in UI.wfThemes){
-        if(!UI.wfThemes.hasOwnProperty(k2)){ continue; }
-        if(DNX_WF[k2]){ continue; }
-        var arr = UI.wfThemes[k2];
-        if(!arr || !arr.length){ continue; }
-        DNX_WF[k2] = arr; n++;
-      }
-      try{ window.DNX_WF = DNX_WF; }catch(eW2){}
-    }catch(e){}
-    return n;
-  }
-  function dnxWfOrigListe(){
-    dnxWfOrigUebernehmen();
-    var out = [], da = {}, q, id;
-    try{
-      for(var k in UI.wfThemes){
-        if(!UI.wfThemes.hasOwnProperty(k)){ continue; }
-        if(/^m188_/.test(k) || dnxWfIstDnx(k)){ continue; }
-        var arr = UI.wfThemes[k];
-        if(!arr || !arr.length){ continue; }
-        da[k] = 1;
-        out.push([k, DNX_WF_ORIG_NAMEN[k] || dnxWfSchick(k)]);
-      }
-    }catch(e1){}
-    for(q = 0; q < DNX_WF_ORIG.length; q++){
-      id = DNX_WF_ORIG[q][0];
-      if(!da[id] && DNX_WF[id]){ out.push([id, DNX_WF_ORIG[q][1]]); }
-    }
-    if(!out.length){ for(q = 0; q < DNX_WF_ORIG.length; q++){ out.push(DNX_WF_ORIG[q]); } }
-    return out;
-  }
-  try{
-    window.dnxWfOrigListe = dnxWfOrigListe; window.dnxWfOrigUebernehmen = dnxWfOrigUebernehmen;
-    window.DNX_WF = DNX_WF; window.DNX_WF_DNX = DNX_WF_DNX; window.DNX_WF_ORIG = DNX_WF_ORIG;
-  }catch(eOZ){}
-
   var DNX_FFT = [
     ["original", "Original (weiss, Server)"],
     ["weiss", "rgba(255,255,255,.62)"],
@@ -12059,7 +10669,7 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
   var DNX_FFT_STD = "pal:2511";
   var wfEls = { sel: null, fft: null, state: null };
   var fftCtx = null;
-  /* ---- v39: Paletten aus dem MultiSDR-Projekt (MultiSDR-Quelle) ----
+  /* ---- v39: Paletten aus dem MultiSDR-Projekt ----
      Quelle: /opt/dnx-multisdr/apps/web/dnx-render-core.js, Objekt PAL (Stuetzpunkte)
      plus PALNAMES (Namen). Die Tabelle steht hier als Stuetzpunkt-Liste; die
      256 Farben werden beim Anmelden daraus gemischt (wie Waterfall.setTheme es
@@ -12176,7 +10786,6 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     }
     return out;
   }
-  try{ window.dnxMsdrParseRef = dnxMsdrParse; }catch(eMP){}
   function dnxMsdrList(){
     if(dnxMsdrList.c){ return dnxMsdrList.c; }
     var c = dnxMsdrParse(), out = [], k;
@@ -12187,7 +10796,6 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     dnxMsdrList.c = out;
     return out;
   }
-  try{ window.dnxMsdrList = dnxMsdrList; window.dnxMsdrParse = dnxMsdrParse; }catch(eML){}
   function dnxMsdrReg(){
     try{
       if(!window.UI || !UI.wfThemes){ return 0; }
@@ -12208,8 +10816,8 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     return e ? ("MultiSDR " + e.label) : "";
   }
   function dnxWfOk(id){
-    var i, OL = dnxWfOrigListe();
-    for(i = 0; i < OL.length; i++){ if(OL[i][0] === id){ return true; } }
+    var i;
+    for(i = 0; i < DNX_WF_ORIG.length; i++){ if(DNX_WF_ORIG[i][0] === id){ return true; } }
     for(i = 0; i < DNX_WF_DNX.length; i++){ if(DNX_WF_DNX[i][0] === id){ return true; } }
     if(String(id).indexOf("m188_") === 0){ return !!dnxMsdrParse()[String(id).slice(5)]; }
     return false;
@@ -12227,8 +10835,8 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     return !!s && dnxWfOk(s);
   }
   function dnxWfName(id){
-    var i, OL = dnxWfOrigListe();
-    for(i = 0; i < OL.length; i++){ if(OL[i][0] === id){ return OL[i][1]; } }
+    var i;
+    for(i = 0; i < DNX_WF_ORIG.length; i++){ if(DNX_WF_ORIG[i][0] === id){ return DNX_WF_ORIG[i][1]; } }
     for(i = 0; i < DNX_WF_DNX.length; i++){ if(DNX_WF_DNX[i][0] === id){ return DNX_WF_DNX[i][1]; } }
     var _m = dnxMsdrName(id);
     if(_m){ return _m; }
@@ -12238,7 +10846,6 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     try{
       if(!window.UI || !UI.wfThemes){ return false; }
       var k;
-      dnxWfOrigUebernehmen();   /* v6.16 */
       for(k in DNX_WF){ if(DNX_WF.hasOwnProperty(k)){ UI.wfThemes[k] = DNX_WF[k]; } }
       dnxMsdrReg();
       var lb = document.getElementById("openwebrx-wf-themes-listbox");
@@ -12272,132 +10879,12 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     if(!dnxWfReg()){ dnxWfState(); return false; }
     try{
       UI.setWfTheme(id);
-      /* v6.16: UI.setWfTheme ignoriert stillschweigend jeden Namen, den der
-         Empfaenger nicht in seiner Liste hat - dann war die Wahl im Styler
-         wirkungslos. Also nachpruefen und die Farben selbst setzen. */
-      try{
-        if(window.UI && UI.wfTheme !== id && DNX_WF[id] && window.Waterfall && Waterfall.setTheme){
-          if(!UI.wfThemes[id]){ UI.wfThemes[id] = DNX_WF[id]; }
-          UI.wfTheme = null;
-          UI.setWfTheme(id);
-          if(UI.wfTheme !== id){ Waterfall.setTheme(DNX_WF[id]); UI.wfTheme = id; }
-        }
-      }catch(eF){
-        try{ Waterfall.setTheme(DNX_WF[id]); }catch(eF2){}
-      }
       var lb = document.getElementById("openwebrx-wf-themes-listbox");
       if(lb){ lb.value = id; }
       dnxWfState();
-      /* v6.16: sichtbares Bild sofort umfaerben (sonst ~20 s bis zur neuen Farbe) */
-      try{ dnxWfNeuMalen("wf:" + id); }catch(eR){}
       return true;
     }catch(e2){ dnxWfState(); return false; }
   }
-
-  /* ---- v6.16: Wasserfall-Sofort-Neumalen ---------------------------------
-     Der Kern malt pro Bild genau EINE Zeile (1 px hoch) in ein sehr breites
-     Canvas und braucht fuer ein volles Bild gut 20 s. Eine neue Palette war
-     deshalb erst viel spaeter zu sehen - der Eindruck war "geht nicht".
-     Hier wird deshalb jede gezeichnete Zeile gemerkt (in 256 Stufen zwischen
-     den damaligen Pegeln) und das sichtbare Bild nach jeder Wahl SOFORT mit
-     der dann aktuellen Palette neu gemalt. */
-  var WFH = { w: 0, cap: 520, n: 0, zeilen: [], min: [], max: [], ziel: [], an: 0, gemeldet: 0 };
-  function wfhMerken(data, mn, mx, cv, y){
-    var w = data.length, i, v, sp = (mx - mn) || 1;
-    if(w !== WFH.w){
-      WFH.w = w; WFH.zeilen = []; WFH.min = []; WFH.max = []; WFH.ziel = []; WFH.n = 0;
-    }
-    var k = WFH.n % WFH.cap;
-    var buf = WFH.zeilen[k];
-    if(!buf || buf.length !== w){ buf = new Uint8Array(w); }
-    for(i = 0; i < w; i++){
-      v = (data[i] - mn) / sp;
-      buf[i] = v < 0 ? 0 : (v > 1 ? 255 : (v * 255 + 0.5) | 0);
-    }
-    WFH.zeilen[k] = buf; WFH.min[k] = mn; WFH.max[k] = mx;
-    WFH.ziel[k] = (cv && cv.width >= w && y >= 0 && y < cv.height) ? { cv: cv, y: y } : null;
-    WFH.n++;
-  }
-  function dnxWfNeuMalen(grund){
-    try{
-      var wf = window.Waterfall;
-      if(!WFH.n || !wf || !WFH.w || !wf.colors || wf.colors.length < 2){ return 0; }
-      var t0 = (window.performance && performance.now) ? performance.now() : Date.now();
-      var CL = wf.colors.length, lut = new Uint32Array(CL), i, c, r, g2, b, v;
-      for(i = 0; i < CL; i++){
-        c = wf.colors[i];
-        if(typeof c === "number"){ r = (c >> 16) & 255; g2 = (c >> 8) & 255; b = c & 255; }
-        else if(c && typeof c.length === "number"){ r = c[0] | 0; g2 = c[1] | 0; b = c[2] | 0; }
-        else { r = g2 = b = 0; }
-        lut[i] = 0xFF000000 | (b << 16) | (g2 << 8) | r;
-      }
-      var total = Math.min(WFH.n, WFH.cap), start = WFH.n - total, anzahl = 0;
-      var cur = null, ctx = null, img = null, out = null;
-      /* v6.16: jede gemerkte Zeile tragt ihren Platz in der Palette schon in
-         sich (256 Stufen, wie gezeichnet wurde). Beim Neumalen wird NUR die
-         Farbe getauscht - die Pegelfenster bleiben, wie sie waren. Sonst
-         wuerden aeltere Zeilen in ein anderes Fenster gequetscht und das Bild
-         schwarz. */
-      var fk = (CL - 1) / 255;
-      for(var j = 0; j < total; j++){
-        var k = (start + j) % WFH.cap, z = WFH.ziel[k];
-        if(!z || !z.cv || !z.cv.parentNode){ continue; }
-        if(z.cv !== cur){
-          cur = z.cv; ctx = null; img = null; out = null;
-          try{ ctx = cur.getContext("2d"); }catch(eG){ ctx = null; }
-          if(!ctx){ continue; }
-          try{ img = ctx.createImageData(WFH.w, 1); }catch(eI){ img = null; }
-          if(!img || !img.data){ continue; }
-          out = new Uint32Array(img.data.buffer);
-        }
-        var src = WFH.zeilen[k];
-        if(CL === 256){
-          for(var x = 0; x < WFH.w; x++){ out[x] = lut[src[x]]; }
-        } else {
-          for(var x2 = 0; x2 < WFH.w; x2++){ out[x2] = lut[(src[x2] * fk + 0.5) | 0]; }
-        }
-        ctx.putImageData(img, 0, z.y);
-        anzahl++;
-      }
-      var dauer = Math.round((((window.performance && performance.now) ? performance.now() : Date.now()) - t0) * 10) / 10;
-      window.__dnxWfNeuZeit = dauer; window.__dnxWfNeuZeilen = anzahl;
-      window.__dnxWfNeuGrund = String(grund || ""); window.__dnxWfNeuBei = WFH.n;
-      if(!WFH.gemeldet && anzahl > 0){
-        WFH.gemeldet = 1;
-        try{ console.info("[DNX-WF] Bild neu gemalt:", anzahl, "Zeilen in", dauer, "ms"); }catch(eC){}
-      }
-      return anzahl;
-    }catch(e){ return -1; }
-  }
-  function dnxWfVerfolge(){
-    if(WFH.an){ return true; }
-    if(typeof window.waterfall_add !== "function"){ return false; }
-    var alt = window.waterfall_add;
-    WFH.an = 1;
-    window.waterfall_add = function(data){
-      var r = alt.apply(this, arguments);
-      try{
-        var lv = window.Waterfall && window.Waterfall.levels;
-        var cs = window.canvases;
-        if(data && data.length && lv && cs && cs.length){
-          wfhMerken(data, lv.min, lv.max, cs[cs.length - 1], window.canvas_actual_line);
-        }
-      }catch(e){}
-      return r;
-    };
-    /* Erhaelt das Kennzeichen des 3D-Hooks, falls er bereits darunter liegt. */
-    if(alt.__dnx3d){ window.waterfall_add.__dnx3d = true; }
-    try{ window.__dnxWfFolg = 1; }catch(e2){}
-    return true;
-  }
-  try{
-    window.dnxWfNeuMalen = dnxWfNeuMalen; window.__dnxWfNeuMalen = dnxWfNeuMalen;
-    window.dnxWfVerfolge = dnxWfVerfolge; window.__dnxWfHist = WFH;
-  }catch(eX){}
-  (function(){
-    setInterval(function(){ try{ if(!WFH.an){ dnxWfVerfolge(); } }catch(e){} }, 1200);
-  })();
-  /* DNX-WF-REPAINT-V616 */
   function dnxFftId(){
     var s = "";
     try{ s = localStorage.getItem(FFT_KEY) || ""; }catch(e){}
@@ -12419,18 +10906,6 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
   }
   function dnxFftFarbe(){
     var id = dnxFftId(), i;
-    if(String(id).indexOf("pal:") === 0){
-      var pn = String(id).slice(4);
-      if(DNX_WF[pn]){
-        var hex = DNX_WF[pn], pos = (hex.length - 1) * 0.8;
-        var i0 = Math.floor(pos), i1 = Math.min(hex.length - 1, i0 + 1), tt = pos - i0;
-        var a = hex[i0], b2 = hex[i1];
-        var r = Math.round((((a >> 16) & 255) * (1 - tt)) + (((b2 >> 16) & 255) * tt));
-        var g2 = Math.round((((a >> 8) & 255) * (1 - tt)) + (((b2 >> 8) & 255) * tt));
-        var bl = Math.round(((a & 255) * (1 - tt)) + ((b2 & 255) * tt));
-        return "rgba(" + r + ", " + g2 + ", " + bl + ", 0.62)";
-      }
-    }
     for(i = 0; i < DNX_FFT.length; i++){ if(DNX_FFT[i][0] === id){ return (id === "original") ? DNX_FFT_ALT : DNX_FFT[i][1]; } }
     var e = dnxMsdrParse()[String(id).slice(4)];
     if(String(id).indexOf("pal:") === 0 && e){
@@ -12570,50 +11045,6 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
      ui_spectrum, damit unser Schalter und der Original-Knopf synchron bleiben.
      Keine Core-Datei wird angefasst. */
   var WF_ON_KEY = "dnx_styler_wf_an";
-
-  /* ---- 3D-Wasserfall (dnx_3dtool): Ansicht 2D / 3D / BEIDE ---- */
-  var M3D_KEY = "dnx_3dtool";
-  function dnx3dLesen(){
-    var o = {};
-    try{ o = JSON.parse(localStorage.getItem(M3D_KEY) || "{}") || {}; }catch(e){ o = {}; }
-    var m = "std";
-    if(o.viewMode === "3d" || o.viewMode === "both"){ m = o.viewMode; }
-    else if(o.enabled === true){ m = "3d"; }
-    if(o.enabled === false){ m = "std"; }
-    return { mode: m, flip: o.splitFlip ? 1 : 0 };
-  }
-  function dnx3dSetzen(mode, flip){
-    if(mode !== "std" && mode !== "3d" && mode !== "both"){ return false; }
-    try{
-      var o = {};
-      try{ o = JSON.parse(localStorage.getItem(M3D_KEY) || "{}") || {}; }catch(e){ o = {}; }
-      o.viewMode = mode;
-      o.enabled = (mode !== "std");
-      o.layoutVersion = 2;
-      if(flip === 0 || flip === 1){ o.splitFlip = !!flip; }
-      localStorage.setItem(M3D_KEY, JSON.stringify(o));
-    }catch(e){}
-    var versuche = 0;
-    function anwenden(){
-      var P = null;
-      try{ P = (window.Plugins && Plugins.dnx_3dtool) || null; }catch(e){ P = null; }
-      if(P && typeof P.setMode === "function" && P.settings){
-        try{
-          if(flip === 0 || flip === 1){ P.settings.splitFlip = !!flip; }
-          P.setMode(mode, true);
-          if(typeof P._layoutMode === "function"){ P._layoutMode(); }
-        }catch(e2){}
-        return true;
-      }
-      return false;
-    }
-    if(anwenden()){ return true; }
-    var t = setInterval(function(){
-      versuche++;
-      if(anwenden() || versuche > 60){ clearInterval(t); }
-    }, 250);
-    return true;
-  }
   var AN_CSS = [
     "body.dnx-wf-aus #webrx-canvas-container{opacity:0 !important;}",
     "body.dnx-wf-aus #webrx-canvas-background{background-image:none !important;background-color:var(--dnx-bg,#0b0f12) !important;}",
@@ -12741,7 +11172,6 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     dnxAnSheet();
     /* v3.72: breiter Chip (Punkt + Name + an/aus) statt winzigem Schiebeschalter */
     var l = document.createElement("label");
-    l.setAttribute("data-dnx-capability", id.indexOf("wf")>=0?"waterfall_display":"spectrum_display");
     l.className = "dnx-an-row dnx-an-chip" + (an ? " an" : "");
     var punkt = document.createElement("i");
     punkt.className = "dnx-an-punkt";
@@ -12796,8 +11226,6 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     }catch(e2){ return false; }
   }
   function dnxAnTick(){
-    try{ dnxStartLayout(); }catch(e){}
-    try{ dnxStartWache(); }catch(e){}
     dnxStatusWache();
     dnxToolKopf();
     dnxFftHook();
@@ -12845,172 +11273,20 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     if(!(rest > 0)){ return 800; }
     return Math.max(60, Math.round(fftHoehe + (rest - 140)));
   }
-  /* v3.92: Beim Start mehr vom Wasserfall zeigen. Gespeicherte Hoehen der
-     roten Ziehlinien werden einmal begrenzt, damit der Wasserfall nicht
-     wieder unten zusammen gequetscht startet. */
-  var dnxStartPhase = 0;
-  /* v6.22: nur eigene, automatisch gesetzte Inline-Grenzen rueckgaengig
-     machen; fremde Styles und gespeicherte Nutzereinstellungen bleiben. */
-  function dnxStartTopBegrenzen(top, h, minH){
-    if(!top){ return; }
-    var keys = ["height", "max-height", "min-height"], vals = [h, h, minH];
-    var m = top.__dnxStartTopAuto;
-    if(!m){
-      m = {};
-      for(var i = 0; i < keys.length; i++){
-        m[keys[i]] = { wert: top.style.getPropertyValue(keys[i]), prioritaet: top.style.getPropertyPriority(keys[i]) };
-      }
-      top.__dnxStartTopAuto = m;
-    }
-    for(var j = 0; j < keys.length; j++){
-      m[keys[j]].gesetzt = vals[j];
-      top.style.setProperty(keys[j], vals[j], "important");
-    }
-  }
-  function dnxStartTopFreigeben(){
-    try{
-      var top = document.querySelector(".webrx-top-container");
-      var m = top && top.__dnxStartTopAuto;
-      if(!m){ return; }
-      ["height", "max-height", "min-height"].forEach(function(k){
-        var a = m[k];
-        if(!a || top.style.getPropertyValue(k) !== a.gesetzt){ return; }
-        if(a.wert){ top.style.setProperty(k, a.wert, a.prioritaet || ""); }
-        else { top.style.removeProperty(k); }
-      });
-      delete top.__dnxStartTopAuto;
-    }catch(e){}
-  }
-  function dnxStartLayout(){
-    try{
-      if(dnxStartPhase >= 3){ return true; }
-      /* Verschobene rote Linien sind Absicht, kein zu reparierender Startwert. */
-      if(dnxFftHGemerkt() > 0 || dnxTopHGemerkt() > 0){ dnxStartPhase = 3; return true; }
-      var w = document.getElementById("webrx-canvas-background");
-      var rest = w ? w.getBoundingClientRect().height : 0;
-      if(!(rest > 120)){ return false; }             /* Layout noch nicht fertig */
-      var win = window.innerHeight || 0;
-
-      /* Phase 1: oberen Abschnitt pruefen. Nimmt er dem Bildfeld zu viel
-         Platz weg (Wasserfall bleibt unten haengen), wird die gespeicherte
-         Hoehe einmal verworfen - dann startet es wie im Soll-Bild. */
-      if(dnxStartPhase === 0){
-        dnxStartPhase = 1;
-        if(win > 300 && rest < win * 0.55){
-          dnxTopHReset();
-          dnxStartPhase = 2;
-          setTimeout(function(){ dnxStartPhase = 2; }, 700);
-          return false;
-        }
-        dnxStartPhase = 2;
-      }
-      if(dnxStartPhase !== 2){ return false; }
-
-      /* Phase 2: Spektrum-Hoehe begrenzen, damit der Wasserfall gross bleibt */
-      dnxStartPhase = 3;
-      var hF = dnxFftHGemerkt();
-      var maxF = Math.max(55, Math.round(rest * 0.26));
-      if(hF > maxF){ dnxFftHSetzen(maxF); }
-      var hT = dnxTopHGemerkt();
-      var maxT = Math.max(60, Math.round(rest * 0.28));
-      if(hT > maxT){ dnxTopHSetzen(maxT); }
-
-      /* Phase 3: Sicherheitsnetz - wenn der obere Abschnitt trotzdem fast
-         das ganze Fenster belegt, wird er auf 52 % begrenzt, damit Spektrum
-         und Wasserfall sichtbar bleiben. */
-      try{
-        var top = document.querySelector(".webrx-top-container");
-        if(top && win > 320){
-          var th = top.getBoundingClientRect().height;
-          var grenze = Math.round(win * 0.52);
-          if(th > grenze + 20){
-            dnxStartTopBegrenzen(top, grenze + "px", "120px");
-          }
-        }
-      }catch(e3){}
-    }catch(e){ return false; }
-    return true;
-  }
-  /* v3.95: Start-Wache - sorgt in den ersten Sekunden dafuer, dass Spektrum
-     und Wasserfall zusammen mindestens die Haelfte des Fensters bekommen.
-     Danach nie wieder (Ziehen des Nutzers bleibt unangetastet). */
-  var dnxWacheBis = 0, dnxWacheN = 0;
-  /* v6.2: EINMAL-Korrektur. Vorher schrieben Start-Layout und Start-Wache
-     abwechselnd zwei verschiedene Hoehen - das Layout sprang dabei mehrmals
-     hin und her (der 3D-Wasserfall zitterte samt Skala). Jetzt korrigiert die
-     Wache hoechstens einmal, und erst wenn das Layout zur Ruhe gekommen ist. */
-  var dnxWacheFertig = false, dnxWacheStart = 0;
-  function dnxStartWache(){
-    if(dnxWacheFertig){ return; }
-    if(dnxFftHGemerkt() > 0 || dnxTopHGemerkt() > 0){ dnxWacheFertig = true; return; }
-    var jetzt = Date.now();
-    if(!dnxWacheStart){ dnxWacheStart = jetzt; }
-    if(jetzt - dnxWacheStart < 2200){ return; }      /* erst nach dem Aufbau */
-    if(!dnxWacheBis){ dnxWacheBis = jetzt + 30000; }
-    if(jetzt > dnxWacheBis || dnxWacheN > 10){ dnxWacheFertig = true; return; }
-    var win = window.innerHeight || 0;
-    if(!win || win < 400){ return; }
-    var cb = document.getElementById("webrx-canvas-background");
-    var fq = document.getElementById("openwebrx-frequency-container");
-    if(!cb){ return; }
-    var rb = cb.getBoundingClientRect();
-    if(rb.height < 40){ return; }
-    var rf = fq ? fq.getBoundingClientRect() : null;
-    var feld = rb.height + (rf ? rf.height : 0);
-
-    if(feld < win * 0.46){
-      dnxWacheN++;
-      var top = document.querySelector(".webrx-top-container");
-      if(top){
-        var grenze = Math.round(win * 0.44);
-        dnxStartTopBegrenzen(top, grenze + "px", "100px");
-      }
-      dnxWacheFertig = true;
-      return;
-    }
-    if(rf && rf.height < 68){
-      dnxWacheN++;
-      dnxFftHSetzen(Math.max(85, Math.round(win * 0.11)));
-      dnxWacheFertig = true;
-      return;
-    }
-    dnxWacheFertig = true;
-  }
-  function dnxHoehenUiSync(k, h){
-    try{
-      if(typeof farbEls === "undefined" || !farbEls || !farbEls[k]){ return; }
-      farbEls[k].value = String(h);
-      if(typeof farbLetzt !== "undefined" && farbLetzt){ farbLetzt[k] = String(farbEls[k].value); }
-      var w = (k === "topH") ? farbEls.topHW : farbEls.fftHW;
-      if(w){ w.textContent = h > 0 ? (h + " px") : "Standard"; }
-    }catch(e){}
-  }
-  /* exakt = gespeicherter Standard: nicht an unvollstaendigem Start-Layout
-     messen. Die Bildschirmgrenze verhindert unbedienbare kleine Fenster. */
-  function dnxFftHSetzen(h, exakt){
-    /* Eigenes Ziehen/Regeln loest die konkurrierende Spektrum-Hoehe; interne
-       Spektrum-Auftraege sind durch __dnxSpecSetztHoehe gekennzeichnet. */
-    try{ if(!window.__dnxSpecSetztHoehe && typeof window.__dnxSpecHoeheFreigeben === "function"){ window.__dnxSpecHoeheFreigeben(); } }catch(eSH){}
+  function dnxFftHSetzen(h){
     h = Math.round(h);
     if(!isFinite(h) || h < 24){ h = 24; }
     var m = dnxFftHMax();
-    if(exakt){
-      var top = dnxTopBox(), th = top ? top.getBoundingClientRect().height : 0;
-      m = Math.max(24, Math.min(800, Math.round((window.innerHeight || 1000) - th - 140)));
-    }
     if(h > m){ h = m; }
     fftHoehe = h;
     dnxFftHAnwenden(h);
     try{ localStorage.setItem(FFT_H_KEY, String(h)); }catch(e){}
-    dnxHoehenUiSync("fftH", h);
     return h;
   }
   function dnxFftHReset(){
-    try{ if(typeof window.__dnxSpecHoeheFreigeben === "function"){ window.__dnxSpecHoeheFreigeben(); } }catch(eSH){}
     fftHoehe = 0;
     dnxFftHAnwenden(0);
     try{ localStorage.removeItem(FFT_H_KEY); }catch(e){}
-    dnxHoehenUiSync("fftH", 0);
     return true;
   }
   function dnxFftZiehen(ev){
@@ -13131,28 +11407,21 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     var m = dnxTopMaxErmitteln();
     return m > 0 ? m : 4000;
   }
-  function dnxTopHSetzen(h, exakt){
+  function dnxTopHSetzen(h){
     h = Math.round(h);
     if(!isFinite(h) || h < 0){ h = 0; }
     if(h > 0 && h < 96){ h = 96; }
-    if(h > 0){ dnxStartTopFreigeben(); }
-    /* Beim Laden ist scrollHeight manchmal nur 67 px, obwohl spaeter ueber
-       300 px Inhalt da sind. Ein gespeicherter Wert darf daran nicht kaputt
-       gekuerzt werden; nur der tatsaechliche Bildschirm begrenzt ihn. */
-    var m = exakt ? Math.max(96, Math.min(4000, Math.round((window.innerHeight || 1000) - 180))) : dnxTopMax();
+    var m = dnxTopMax();
     if(h > m){ h = m; }
     topHoehe = h;
     dnxTopAnwenden(h);
     try{ localStorage.setItem(TOP_H_KEY, String(h)); }catch(e){}
-    dnxHoehenUiSync("topH", h);
     return h;
   }
   function dnxTopHReset(){
-    dnxStartTopFreigeben();
     topHoehe = 0;
     dnxTopAnwenden(0);
     try{ localStorage.removeItem(TOP_H_KEY); }catch(e){}
-    dnxHoehenUiSync("topH", 0);
     return true;
   }
   function dnxTopZiehen(ev){
@@ -13220,40 +11489,6 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     dnxAnSheet();
     dnxAnTick();
     dnxStdLaden();
-    setTimeout(function(){ try{ dnxToolsStart(); }catch(e){} }, 1500);
-    /* v3.83: Werkzeugreihe aufraeumen und sortieren */
-    try{
-      dnxRowAnordnen();
-      setInterval(function(){ try{ dnxRowAnordnen(); dnxRowEinheitlich(); }catch(e){} }, 250);
-      /* v5.0: sobald ein anderes Plugin eine andere Farbe setzt, sofort zurueck
-         auf das einheitliche Gruen - dadurch kein Blinken mehr */
-      try{
-        var rowBeob = document.getElementById("dnx-master-tool-row");
-        if(rowBeob && window.MutationObserver){
-          var mo = new MutationObserver(function(){
-            try{ dnxRowEinheitlich(); }catch(e){}
-          });
-          mo.observe(rowBeob, { attributes:true, attributeFilter:["style"], subtree:true, childList:true });
-        }
-      }catch(eMo){}
-      /* Farben einmalig nachziehen (nicht im Takt - sonst blinken Knoepfe) */
-      setTimeout(function(){ try{ dnxRowEinheitlich(); }catch(e){} }, 2200);
-      setTimeout(function(){ try{ dnxRowEinheitlich(); }catch(e){} }, 5000);
-    }catch(e){}
-    /* v4.9: Zeitachse beim Start nach RECHTS zwingen (mehrfach, falls spaet aufgebaut) */
-    try{
-      var seitenTakt = setInterval(function(){
-        if(!DNX_SEITE_FEST){ clearInterval(seitenTakt); return; }
-        try{
-          if(typeof ZT !== "undefined" && ZT && ZT.seite !== 1){
-            ZT.seite = 1;
-            console.info("[zeit] Seite auf rechts gesetzt");
-            if(typeof dnxZeitAnwenden === "function" && ZT.an){ dnxZeitAnwenden(current); }
-          }
-        }catch(e){}
-      }, 700);
-      /* laeuft weiter, bis der Besucher die Seite selbst umstellt */
-    }catch(e){}
   }
   /* ---- v42: Schalter auch am Empfaenger + Standard fuer alle Besucher ----
      A) dnxAnPanel(): Kopie der beiden Schalter im Empfaenger-Feld
@@ -13265,10 +11500,7 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
         Jeder Besucher bekommt diesen Stand beim Laden zuerst; sobald jemand im
         Styler sein eigenes Theme speichert, gilt seine eigene Wahl. */
   var STD_KEY = "dnx_styler_std_token";
-  var STD_TS_KEY = "dnx_styler_std_ts";
-  var STD_SIG_KEY = "dnx_styler_std_signatur_v1";
-  var dnxStdFragt = false, dnxStdSchreibt = false, dnxStdSchreibNr = 0, dnxStdLetzterKlick = 0;
-  var dnxStdNochmal = false, dnxStdEreignisNr = 0, dnxStdStream = null;
+  var STD_TS_KEY = "dnx_styler_std_ts";   /* v3.69: Zeitmarke des zuletzt angewandten Standards */
   function dnxAnPanel(){
     try{
       if(document.getElementById("dnx-an-panel")){ return true; }
@@ -13338,10 +11570,7 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
         try{
           var r = document.getElementById("dnx-master-tool-row");
           if(r){ n += r.querySelectorAll("button").length; }
-          var ap2 = document.getElementById("dnx-an-panel");
-          var apSichtbar = !!ap2;
-          try{ if(ap2 && getComputedStyle(ap2).display === "none"){ apSichtbar = false; } }catch(e){}
-          if(apSichtbar){ n += ap2.querySelectorAll("input.dnx-an").length; }
+          n += document.querySelectorAll("#dnx-an-panel input.dnx-an").length;
           if(document.getElementById("dnx-weather-launch")){ n++; }
           if(document.getElementById("dnx-styler-launch")){ n++; }
           if(document.getElementById("dnx-fm-launch")){ n++; }
@@ -13418,139 +11647,6 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     }catch(e){ return false; }
   }
 
-  /* DNX_ROW_SORT_START
-     v3.83: Wasserfall und Spektrum als normale Knoepfe in die Werkzeugreihe,
-     alles alphabetisch nach der Sprache des Besuchers sortiert. */
-  var DNX_LANG = (function(){
-    var l = "";
-    try{ l = String(navigator.language || navigator.userLanguage || "de").toLowerCase(); }catch(e){ l = "de"; }
-    return (l.indexOf("de") === 0) ? "de" : "en";
-  })();
-  function dnxRowWorte(){
-    if(DNX_LANG === "de"){ return { wf:"Wasserfall", ff:"Spektrum", an:"An", aus:"Off" }; }
-    return { wf:"Waterfall", ff:"Spectrum", an:"On", aus:"Off" };
-  }
-  function dnxRowEtikett(b){
-    var t = "";
-    try{ t = String(b.textContent || "").trim(); }catch(e){ t = ""; }
-    var i = t.indexOf(":");
-    return (i > 0 ? t.slice(0, i) : t).trim();
-  }
-  function dnxRowFarbe(b, name, an, w){
-    b.textContent = name + ": " + (an ? w.an : w.aus);
-    b.title = name + " " + (an ? (DNX_LANG === "de" ? "an" : "on") : (DNX_LANG === "de" ? "aus" : "off"));
-    try{
-      b.style.setProperty("background", an ? "#1f8f52" : "#666666", "important");
-      b.style.setProperty("color", an ? "#f2fff8" : "#ffffff", "important");
-    }catch(e){}
-  }
-  function dnxRowKnopf(id, klick){
-    var b = document.getElementById(id);
-    if(!b){
-      b = document.createElement("button");
-      b.type = "button";
-      b.id = id;
-      b.addEventListener("click", function(ev){
-        if(ev && ev.preventDefault){ ev.preventDefault(); }
-        if(ev && ev.stopPropagation){ ev.stopPropagation(); }
-        try{ klick(); }catch(e){}
-        dnxRowAnordnen();
-      });
-    }
-    return b;
-  }
-  /* Einheitliche Farben: an = cyan, aus = grau (gilt fuer alle Werkzeugknoepfe) */
-  function dnxRowZustand(b){
-    var t = "";
-    try{ t = String(b.textContent || ""); }catch(e){ return null; }
-    if(/[:\u00b7]\s*(an|on|ein|aktiv)\s*$/i.test(t)){ return true; }
-    if(/[:\u00b7]\s*(aus|off)\s*$/i.test(t)){ return false; }
-    return null;
-  }
-  function dnxRowEinheitlich(){
-    var row = document.getElementById("dnx-master-tool-row");
-    if(!row){ return false; }
-    for(var i = 0; i < row.children.length; i++){
-      var b = row.children[i];
-      if(!b || b.tagName !== "BUTTON"){ continue; }
-      var z = dnxRowZustand(b);
-      if(z === null){ continue; }
-      /* v4.9: EINE Farbe fuer alle - an = DNX-Gruen, aus = grau */
-      var bg = z ? "#1f8f52" : "#666666";
-      var fg = z ? "#f2fff8" : "#ffffff";
-      try{
-        if(b.style.getPropertyValue("background") !== bg){ b.style.setProperty("background", bg, "important"); }
-        if(b.style.getPropertyValue("color") !== fg){ b.style.setProperty("color", fg, "important"); }
-      }catch(e){}
-    }
-    return true;
-  }
-
-  function dnxRowAnordnen(){
-    var row = document.getElementById("dnx-master-tool-row");
-    if(!row){ return false; }
-    var w = dnxRowWorte();
-
-    /* 1) Wasserfall + Spektrum in die Reihe holen */
-    var bw = dnxRowKnopf("dnx-master-wf", function(){
-      dnxAnWfSetze(!dnxAnWf());
-      dnxWfState();
-      if(typeof uiHooks !== "undefined" && uiHooks && uiHooks.flash){ uiHooks.flash(w.wf + " " + (dnxAnWf() ? "an" : "aus")); }
-    });
-    var bf = dnxRowKnopf("dnx-master-fft", function(){
-      dnxFftAnSetze(!dnxFftAn());
-      dnxWfState();
-      if(typeof uiHooks !== "undefined" && uiHooks && uiHooks.flash){ uiHooks.flash(w.ff + " " + (dnxFftAn() ? "an" : "aus")); }
-    });
-    if(bw.parentNode !== row){ row.appendChild(bw); }
-    if(bf.parentNode !== row){ row.appendChild(bf); }
-
-    /* 2) alte Pillen-Zeile ausblenden (Funktion bleibt erhalten) */
-    var ap = document.getElementById("dnx-an-panel");
-    if(ap){ ap.style.setProperty("display", "none", "important"); }
-
-    /* 3) Beschriftung + Farbe */
-    dnxRowFarbe(bw, w.wf, dnxAnWf(), w);
-    dnxRowFarbe(bf, w.ff, dnxFftAn(), w);
-
-    /* 3b) Zeitachse ebenfalls farbig nach Zustand */
-    var bt = document.getElementById("dnx-role-timeline");
-    if(bt){
-      var tAn = null;
-      try{ tAn = (window.dnxZeit && typeof window.dnxZeit.status === "function") ? !!window.dnxZeit.status().an : null; }catch(e){ tAn = null; }
-      if(tAn === null){
-        var ax = document.getElementById("dnx-zt-achse");
-        tAn = !!(ax && ax.parentNode);
-      }
-      dnxRowFarbe(bt, (DNX_LANG === "de" ? "Zeitachse" : "Timeline"), tAn, w);
-    }
-
-    /* 4) alphabetisch sortieren (Sprache des Besuchers) */
-    var kids = [];
-    for(var i = 0; i < row.children.length; i++){
-      if(row.children[i].tagName === "BUTTON"){ kids.push(row.children[i]); }
-    }
-    kids.sort(function(a, b){
-      return dnxRowEtikett(a).localeCompare(dnxRowEtikett(b), DNX_LANG, { sensitivity: "base" });
-    });
-    var gleich = true;
-    for(var j = 0; j < kids.length; j++){
-      if(row.children[j] !== kids[j]){ gleich = false; break; }
-    }
-    if(!gleich){
-      for(var k = 0; k < kids.length; k++){ row.appendChild(kids[k]); }
-    }
-
-    /* 5) Farben kommen aus den Werkzeugen selbst (kein Dauer-Schreiben mehr,
-          sonst blinken Knoepfe, die von zwei Stellen gefaerbt werden) */
-    return true;
-  }
-  /* DNX_ROW_SORT_END */
-
-  function dnxToolsStart(){
-    var o = dnxToolsEigen();
-    if(o){ dnxToolsApply(o); }
-  }
   function dnxStdEigen(){
     try{
       if(localStorage.getItem(KEY)){ return true; }
@@ -13565,83 +11661,21 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
       if(st.fft){ localStorage.setItem(FFT_KEY, String(st.fft)); }
     }catch(e){}
     if(st.wf_an === 0 || st.wf_an === 1){ dnxAnWfSetze(st.wf_an === 1); gesetzt.push("Wasserfall " + (st.wf_an ? "an" : "aus")); }
-    if(st.fft_an === 0 || st.fft_an === 1){
-      /* Ein expliziter Standard-An/Aus-Schalter hat Vorrang vor dem
-         automatischen Einblenden einer nicht-originalen Spektrumpalette. */
-      try{ if(window.__dnxPalZeile){ window.__dnxPalZeile.ruhig = st.fft_an ? 0 : 1; window.__dnxPalZeile.geoeffnet = 0; } }catch(ePF){}
-      dnxFftAnSetze(st.fft_an === 1); gesetzt.push("Spektrum " + (st.fft_an ? "an" : "aus"));
-    }
-    if(st.tools && typeof st.tools === "object"){
-      /* Auch nach F5 die neu veroeffentlichten Werkzeuge behalten, ohne
-         unbekannte persoenliche Werkzeugeinstellungen zu loeschen. */
+    if(st.fft_an === 0 || st.fft_an === 1){ dnxFftAnSetze(st.fft_an === 1); gesetzt.push("Spektrum " + (st.fft_an ? "an" : "aus")); }
+    if(st.skin && st.skin.accent && !dnxStdEigen()){
       try{
-        var tm = dnxToolsEigen() || {};
-        for(var tk in st.tools){ if(/^t_[a-z0-9_]{1,20}$/.test(tk) && (st.tools[tk] === 0 || st.tools[tk] === 1)){ tm[tk] = st.tools[tk]; } }
-        localStorage.setItem(TOOLS_KEY, JSON.stringify(tm));
-      }catch(eTM){}
-      var n = dnxToolsApply(st.tools);
-      if(n){ gesetzt.push("Werkzeuge"); }
-    }
-    if(st.spektrum && typeof st.spektrum === "object"){
-      try{ if(typeof window.__dnxSpecVollSet === "function"){ window.__dnxSpecVollSet(st.spektrum); } }catch(eSP){}
-    }
-    if(st.pegel && typeof st.pegel === "object"){
-      /* [DNX-PEGEL-1] Offset / Range / Kontrast / Automatik sofort uebernehmen. */
-      try{
-        if(typeof window.__dnxPegelSet === "function" && window.__dnxPegelSet(st.pegel)){ gesetzt.push("Pegel"); }
-        /* [DNX-PEGEL-2] Abweichungen je Profil in den eigenen Vorrat uebernehmen. */
-        if(st.pegel.profile && typeof window.__dnxPegelProfileSet === "function"){
-          window.__dnxPegelProfileSet(st.pegel.profile);
-        }
-        if(typeof window.__dnxPegelSync === "function"){ window.__dnxPegelSync(); }
-      }catch(ePG){}
-    }
-    if(st.farben && typeof st.farben === "object"){
-      try{ if(farbAnwenden(st.farben)){ gesetzt.push("Farben"); } }catch(eFb){}
-    }
-    if(st.m3d === "std" || st.m3d === "3d" || st.m3d === "both"){
-      var ff = (st.m3d_flip === 0 || st.m3d_flip === 1) ? st.m3d_flip : null;
-      dnx3dSetzen(st.m3d, ff);
-      gesetzt.push("Ansicht " + (st.m3d === "std" ? "2D" : (st.m3d === "3d" ? "3D" : "2D+3D")));
-    }
-    if(st.skin && st.skin.accent){
-      try{
-        /* Verteilte Felder gezielt ersetzen; alles andere bleibt persoenlich. */
-        var d = shareKeep(st.skin), gemischt = {}, k;
-        for(k in current){ if(Object.prototype.hasOwnProperty.call(current, k)){ gemischt[k] = current[k]; } }
-        for(k in d){ if(Object.prototype.hasOwnProperty.call(d, k)){ gemischt[k] = d[k]; } }
-        /* Die sichtbare Zeitachse hat auch einen Werkzeug-Schalter. Dieser
-           beschreibt den tatsaechlichen Zustand und hat bei Konflikt Vorrang. */
-        if(st.tools && (st.tools.t_zeitachse === 0 || st.tools.t_zeitachse === 1)){ gemischt.mt = st.tools.t_zeitachse; }
-        current = ensureDefaults(gemischt);
-        if(d.mt_seite === 0 || d.mt_seite === 1){
-          try{ localStorage.setItem("dnx.zeitachse.seite", d.mt_seite === 0 ? "L" : "R"); }catch(eZS){}
-          DNX_SEITE_FEST = false;
-        }
-        save(current);
+        var d = shareKeep(st.skin);
+        if(!d.bg){ d.bg = PRESETS.dnx.bg; }
+        if(!d.panel){ d.panel = PRESETS.dnx.panel; }
+        if(!d.btn){ d.btn = PRESETS.dnx.btn; }
+        if(!d.text){ d.text = PRESETS.dnx.text; }
+        if(!d.accent){ d.accent = PRESETS.dnx.accent; }
+        current = ensureDefaults(d);
         apply(current);
+        if(uiHooks.sync){ try{ uiHooks.sync(); }catch(e3){} }
         gesetzt.push("Aussehen");
       }catch(e2){}
-    } else if(st.tools && (st.tools.t_zeitachse === 0 || st.tools.t_zeitachse === 1)){
-      /* Auch alte Standards ohne Skin duerfen ein ausgeschaltetes Werkzeug
-         nicht durch einen persoenlichen Skin wieder einschalten. */
-      try{ current.mt = st.tools.t_zeitachse; save(current); apply(current); }catch(eZT){}
     }
-    if(st.effekte && typeof st.effekte === "object"){
-      try{
-        if(typeof st.effekte.pfx === "string"){
-          for(var pi = 0; pi < PFX.length; pi++){ if(PFX[pi][0] === st.effekte.pfx){ localStorage.setItem(PFX_KEY, st.effekte.pfx); pillFxSync(); break; } }
-        }
-        if(["standard", "lauf", "farbstat", "leddb", "leds"].indexOf(st.effekte.smeter) >= 0){
-          localStorage.setItem("dnx_styler_smeter_style", st.effekte.smeter);
-          smeterVCache = null; smeterTheme();
-        }
-      }catch(eEF){}
-    }
-    if(st.seiten && typeof st.seiten === "object"){
-      try{ ["zeitachse", "pegel", "dmr"].forEach(function(sk){ if(st.seiten[sk] === "L" || st.seiten[sk] === "R"){ if(sk === "pegel"){ dnxPegelUser = false; } dnxSeiteSetzen(sk, st.seiten[sk]); } }); }catch(eSS){}
-    }
-    if(uiHooks.sync){ try{ uiHooks.sync(); }catch(e3){} }
     try{
       if(wfEls.sel){ wfEls.sel.value = dnxWfId(); }
       if(wfEls.fft){ wfEls.fft.value = dnxFftId(); }
@@ -13653,524 +11687,53 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     if(gesetzt.length && uiHooks.flash){ uiHooks.flash("Standard: " + gesetzt.join(", ")); }
     return true;
   }
-  function dnxStdSignatur(j){
-    try{ return JSON.stringify([String(j.ts || ""), j.std || null]); }catch(e){ return ""; }
-  }
-  function dnxStdMerken(j){
-    try{
-      if(j.token){ localStorage.setItem(STD_KEY, String(j.token)); }
-      if(j.ts){ localStorage.setItem(STD_TS_KEY, String(j.ts)); }
-      var sig = dnxStdSignatur(j);
-      if(sig){ localStorage.setItem(STD_SIG_KEY, sig); }
-    }catch(e){}
-  }
-  function dnxStdAbfragen(dringend){
-    if(!window.fetch){ return; }
-    if(dnxStdFragt || dnxStdSchreibt){ if(dringend === true){ dnxStdNochmal = true; } return; }
-    dnxStdFragt = true;
-    var nr = dnxStdSchreibNr, ereignis = dnxStdEreignisNr;
-    var controller = (typeof AbortController !== "undefined") ? new AbortController() : null;
-    var timer = controller ? setTimeout(function(){ controller.abort(); }, 6500) : null;
-    var opt = { cache: "no-store" };
-    if(controller){ opt.signal = controller.signal; }
-    shareFetch("/dnx/styler/std", opt).then(function(j){
-      /* Eine alte GET-Antwort darf nie die gerade gespeicherten Werte zuruecksetzen. */
-      if(nr !== dnxStdSchreibNr || ereignis !== dnxStdEreignisNr || dnxStdSchreibt || !j || !j.ok || !j.std){ return; }
-      var sig = dnxStdSignatur(j), alt = "", gesehen = "", ts = String(j.ts || "");
-      try{ alt = localStorage.getItem(STD_SIG_KEY) || ""; gesehen = localStorage.getItem(STD_TS_KEY) || ""; }catch(e){}
-      if(alt && sig === alt){ return; }
-      /* Migration: ein bereits bekannter alter Standard wird nur vorgemerkt,
-         nicht erneut ueber die persoenlichen Einstellungen gelegt. */
-      if(!alt && ts && gesehen === ts){ dnxStdMerken(j); return; }
-      dnxStdAnwenden(j.std);
-      dnxStdMerken(j);
-    }).catch(function(){}).then(function(){
-      if(timer){ clearTimeout(timer); }
-      dnxStdFragt = false;
-      if(dnxStdNochmal && !dnxStdSchreibt){ dnxStdNochmal = false; dnxStdAbfragen(); }
-    });
-  }
-  function dnxStdPushMeldung(){
-    dnxStdEreignisNr++;
-    dnxStdAbfragen(true);
-  }
   function dnxStdLaden(){
     if(dnxStdLaden.g){ return false; }
     dnxStdLaden.g = 1;
     if(!window.fetch){ return false; }
-    dnxStdAbfragen();
-    /* Der Dienst meldet Aenderungen sofort. Fallback bleibt fuer alte Dienste,
-       abgebrochene Verbindungen und Browser ohne EventSource erhalten. */
-    try{
-      if(window.EventSource){
-        dnxStdStream = new EventSource(shareBase() + "/dnx/styler/events");
-        dnxStdStream.addEventListener("standard", dnxStdPushMeldung);
-        dnxStdStream.onopen = dnxStdPushMeldung;
-      }
-    }catch(eES){}
-    setInterval(dnxStdAbfragen, 8000);
-    window.addEventListener("focus", dnxStdAbfragen);
-    document.addEventListener("visibilitychange", function(){ if(!document.hidden){ dnxStdAbfragen(); } });
+    shareFetch("/dnx/styler/std", { cache: "no-store" }).then(function(j){
+      if(!j || !j.ok || !j.std){ return; }
+      /* v3.69: ein NEUER Standard wird auch bei eigenen Einstellungen einmal
+         durchgesetzt (Zeitmarke vergleichen); danach bleibt eigene Wahl gueltig. */
+      var ts = String(j.ts || "");
+      var gesehen = "";
+      try{ gesehen = localStorage.getItem(STD_TS_KEY) || ""; }catch(e){}
+      if(dnxStdEigen() && ts && ts === gesehen){ return; }
+      dnxStdAnwenden(j.std);
+      try{ if(ts){ localStorage.setItem(STD_TS_KEY, ts); } }catch(e){}
+    }).catch(function(){});
     return true;
-  }
-  /* ================= Werkzeuge an/aus (teilen wie alles andere) ================= */
-  var TOOLS_KEY = "dnx_styler_tools";
-
-  function tVisible(el){
-    if(!el){ return false; }
-    var st2 = getComputedStyle(el);
-    return st2.display !== "none" && st2.visibility !== "hidden";
-  }
-  function tClick(id){
-    var e = document.getElementById(id);
-    if(!e){ return false; }
-    try{ e.click(); return true; }catch(err){ return false; }
-  }
-  function tTextState(id){
-    var e = document.getElementById(id);
-    if(!e){ return null; }
-    var t = String(e.textContent || "");
-    if(/(:\s*)(on|an)\b/i.test(t)){ return true; }
-    if(/(:\s*)(off|aus)\b/i.test(t)){ return false; }
-    return null;
-  }
-  function tMaster(k, label, id){
-    return {
-      k: k, label: label,
-      is: function(){ return tTextState(id); },
-      set: function(an){
-        var jetzt = tTextState(id);
-        if(jetzt === null || jetzt === an){ return jetzt !== null; }
-        return tClick(id);
-      }
-    };
-  }
-
-
-  // ---- Original-Slot-Fenster von OpenWebRX ausblenden ----
-  var ORIG_SLOT_PANELS = ["dmr", "dstar", "tetra", "ysf", "p25", "nxdn", "m17"];
-  var ORIG_SLOT_AUS = false;
-  try{ ORIG_SLOT_AUS = (localStorage.getItem("dnx_orig_slots_aus") === "1"); }catch(e){}
-
-  function dnxOrigSlotPanels(){
-    var out = [], i, e;
-    for(i = 0; i < ORIG_SLOT_PANELS.length; i++){
-      e = document.getElementById("openwebrx-panel-metadata-" + ORIG_SLOT_PANELS[i]);
-      if(e){ out.push(e); }
-    }
-    return out;
-  }
-  function dnxOrigSlotsAnwenden(){
-    var ps = dnxOrigSlotPanels(), i;
-    for(i = 0; i < ps.length; i++){
-      if(ORIG_SLOT_AUS){ ps[i].style.setProperty("display", "none", "important"); }
-      else { ps[i].style.removeProperty("display"); }
-    }
-  }
-  function dnxOrigSlotsAn(){ return !ORIG_SLOT_AUS; }
-  function dnxOrigSlotsSetze(an){
-    ORIG_SLOT_AUS = !an;
-    try{ localStorage.setItem("dnx_orig_slots_aus", ORIG_SLOT_AUS ? "1" : "0"); }catch(e){}
-    dnxOrigSlotsAnwenden();
-    return true;
-  }
-  try{ setInterval(dnxOrigSlotsAnwenden, 700); }catch(e){}
-  // ---- Ende Original-Slot-Fenster ----
-
-  var TOOL_DEFS = [
-    { k:"wf", label:"Wasserfall",
-      is:function(){ return dnxAnWf(); },
-      set:function(an){ return dnxAnWfSetze(an); } },
-    { k:"fft", label:"Spektrum",
-      is:function(){ return dnxFftAn(); },
-      set:function(an){ dnxFftAnSetze(an); return true; } },
-    { k:"ansicht", label:"3D-Ansicht",
-      is:function(){ return dnx3dLesen().mode !== "std"; },
-      set:function(an){ return dnx3dSetzen(an ? "3d" : "std", null); } },
-    tMaster("gelb", "Gelb Hover", "dnx-master-yellow"),
-    tMaster("gruen", "Gruen Tuning", "dnx-master-green"),
-    tMaster("status", "DNX Status", "dnx-master-status"),
-    tMaster("tool3d", "3D Tool", "dnx-master-3d"),
-    tMaster("novnc", "noVNC / Foto", "dnx-master-photo"),
-    tMaster("remote", "Remote VIEW", "dnx-master-remote"),
-    { k:"zeitachse", label:"Zeitachse",
-      is:function(){
-        if(!window.dnxZeit || !dnxZeit.status){ return null; }
-        try{ return !!dnxZeit.status().an; }catch(e){ return null; }
-      },
-      set:function(an){ return tClick("dnx-role-timeline"); } },
-    tMaster("adsb", "ADS-B", "dnx-master-adsb"),
-    tMaster("ais", "AIS", "dnx-master-ais"),
-    { k:"sounds", label:"Sounds",
-      is:function(){ return !DNX_SND_AUS; },
-      set:function(an){ return dnxSndSetze(an); } },
-    { k:"oslot", label:"Original-Slots",
-      is:function(){ return dnxOrigSlotsAn(); },
-      set:function(an){ return dnxOrigSlotsSetze(an); } },
-    { k:"dmr", label:"Slots",
-      is:function(){
-        if(!window.DNXDmrSlots){ return null; }
-        try{ return !!DNXDmrSlots.isVisible(); }catch(e){ return null; }
-      },
-      set:function(an){
-        if(!window.DNXDmrSlots){ return false; }
-        try{ an ? DNXDmrSlots.show() : DNXDmrSlots.hide(); return true; }catch(e){ return false; }
-      } },
-    { k:"pegel", label:"Pegel",
-      is:function(){ try{ return window.DNXWaterfallPro ? !!(window.DNXWaterfallPro.isVisible && DNXWaterfallPro.isVisible()) : null; }catch(e){ return null; } },
-      set:function(an){ try{ window.DNXWaterfallPro && (an ? DNXWaterfallPro.show() : DNXWaterfallPro.hide()); return true; }catch(e){ return false; } } },
-    { k:"eq", label:"Grafik-EQ",
-      is:function(){ var c = document.querySelector("#dnx-eq-panel .eq-on"); return c ? !!c.checked : null; },
-      set:function(an){
-        var c = document.querySelector("#dnx-eq-panel .eq-on");
-        if(!c){ return false; }
-        if(!!c.checked !== !!an){ c.checked = !!an; c.dispatchEvent(new Event("change", { bubbles:true })); }
-        return true;
-      } },
-    { k:"wetter", label:"DNX Wetter",
-      is:function(){ return tVisible(document.getElementById("dnx-weather-win")); },
-      set:function(an){
-        var w = document.getElementById("dnx-weather-win");
-        if(an){ if(!tVisible(w)){ tClick("dnx-weather-launch"); } }
-        else if(w){ w.style.display = "none"; w.classList && w.classList.remove("active"); }
-        return true;
-      } },
-    { k:"favoriten", label:"Favoriten / Scanner",
-      is:function(){ return tVisible(document.getElementById("dnx-fm-window")); },
-      set:function(an){
-        var w = document.getElementById("dnx-fm-window");
-        if(an){ if(!tVisible(w)){ tClick("dnx-fm-launch"); } }
-        else if(w){ w.style.display = "none"; }
-        return true;
-      } }
-  ];
-
-  function dnxToolsSnapshot(){
-    var o = {}, i, d, v;
-    for(i = 0; i < TOOL_DEFS.length; i++){
-      d = TOOL_DEFS[i];
-      try{ v = d.is(); }catch(e){ v = null; }
-      if(v === true || v === false){ o["t_" + d.k] = v ? 1 : 0; }
-    }
-    return o;
-  }
-
-  // Gespeicherten eigenen Zustand lesen/schreiben
-  function dnxToolsSave(){
-    try{ localStorage.setItem(TOOLS_KEY, JSON.stringify(dnxToolsSnapshot())); }catch(e){}
-  }
-  function dnxToolsEigen(){
-    var o = null;
-    try{ o = JSON.parse(localStorage.getItem(TOOLS_KEY) || "null"); }catch(e){ o = null; }
-    return (o && typeof o === "object") ? o : null;
-  }
-
-  // Zustand anwenden - Werkzeuge erscheinen teils spaeter, daher mit Nachfassen
-  var dnxToolsAuftrag = 0;
-  function dnxToolsApply(map, fertig){
-    if(!map || typeof map !== "object"){ if(fertig){ fertig(0); } return 0; }
-    var auftrag = ++dnxToolsAuftrag;
-    var offene = [], k, d, wert;
-    for(k in map){
-      if(!/^t_[a-z0-9_]{1,20}$/.test(k)){ continue; }
-      wert = (map[k] === 1 || map[k] === true || map[k] === "1");
-      for(var i = 0; i < TOOL_DEFS.length; i++){
-        if("t_" + TOOL_DEFS[i].k === k){ offene.push({ d: TOOL_DEFS[i], an: wert }); }
-      }
-    }
-    if(!offene.length){ if(fertig){ fertig(0); } return 0; }
-    var runden = 0;
-    function runde(){
-      if(auftrag !== dnxToolsAuftrag){ return; }
-      var rest = [];
-      for(var i = 0; i < offene.length; i++){
-        var o = offene[i], ist = null;
-        try{ ist = o.d.is(); }catch(e){ ist = null; }
-        if(ist === null){ rest.push(o); continue; }          // Werkzeug noch nicht da
-        if(ist !== o.an){ try{ o.d.set(o.an); }catch(e){} rest.push(o); }
-      }
-      runden++;
-      if(rest.length && runden < 20){ setTimeout(function(){ offene = rest; runde(); }, 400); }
-      else if(fertig){ fertig(offene.length); }
-    }
-    runde();
-    return offene.length;
-  }
-
-  // Schalterleiste im Styler
-  var toolEls = {};
-
-  /* ---- v4.8: Links/Rechts-Umschalter fuer Zeitachse, Pegel und Slots ---- */
-  var DNX_SEITEN = { zeitachse: 1, pegel: 1, dmr: 1 };
-  function dnxSeiteSchluessel(k){ return "dnx." + k + ".seite"; }
-  function dnxSeiteHolen(k){
-    if(k === "zeitachse"){
-      var zw = null;
-      try{ zw = localStorage.getItem("dnx.zeitachse.seite"); }catch(e){ zw = null; }
-      if(zw){ return (String(zw).toUpperCase() === "L") ? "L" : "R"; }
-      return ((current.mt_seite | 0) === 0) ? "L" : "R";
-    }
-    var standard = (k === "pegel") ? "L" : "R";      /* Pegel startet links */
-    var v = standard;
-    try{ v = localStorage.getItem(dnxSeiteSchluessel(k)) || standard; }catch(e){ v = standard; }
-    return (String(v).toUpperCase() === "L") ? "L" : "R";
-  }
-  var dnxPegelUser = false;
-  try{
-    document.addEventListener("mousedown", function(ev){
-      try{ if(ev.target && ev.target.closest && ev.target.closest(".dnx-wfpro-head")){ dnxPegelUser = true; } }catch(e){}
-    }, true);
-    document.addEventListener("dblclick", function(ev){
-      try{ if(ev.target && ev.target.closest && ev.target.closest(".dnx-wfpro-head")){ dnxPegelUser = false; } }catch(e){}
-    }, true);
-  }catch(ePU){}
-  function dnxPegelSeite(){
-    var p = document.querySelector(".dnx-wfpro");
-    if(!p){ return false; }
-    if(dnxPegelUser){ return true; }             /* Nutzer hat selbst gezogen */
-    var l = (dnxSeiteHolen("pegel") === "L");
-    try{
-      p.style.setProperty("left", l ? "0" : "auto", "important");
-      p.style.setProperty("right", l ? "auto" : "0", "important");
-      p.style.setProperty("border-radius", l ? "0 4px 4px 0" : "4px 0 0 4px", "important");
-      p.style.setProperty("border-left", l ? "0" : "1px solid rgba(255,255,255,0.09)", "important");
-      p.style.setProperty("border-right", l ? "1px solid rgba(255,255,255,0.09)" : "0", "important");
-    }catch(e){}
-    return true;
-  }
-  function dnxSlotsSeite(){
-    try{
-      if(window.DNXDmrSlots && typeof DNXDmrSlots.seite === "function"){
-        DNXDmrSlots.seite(dnxSeiteHolen("dmr") === "L" ? "links" : "rechts");
-        return true;
-      }
-    }catch(e){}
-    return false;
-  }
-  function dnxSeiteSetzen(k, sd){
-    sd = (sd === "L") ? "L" : "R";
-    if(k === "zeitachse"){
-      current.mt_seite = (sd === "L") ? 0 : 1;
-      try{ localStorage.setItem("dnx.zeitachse.seite", sd); }catch(e){}
-      try{ save(current); }catch(e){}
-      DNX_SEITE_FEST = false;
-      try{ if(typeof dnxZeitAnwenden === "function"){ dnxZeitAnwenden(current); } }catch(e){}
-      return true;
-    }
-    try{ localStorage.setItem(dnxSeiteSchluessel(k), sd); }catch(e){}
-    if(k === "pegel"){ dnxPegelSeite(); }
-    if(k === "dmr"){ dnxSlotsSeite(); }
-    return true;
-  }
-  /* v5.1: Pegel-Seite beim Start durchsetzen - auch ohne geoeffnetes Styler-Fenster */
-  try{
-    [800, 1800, 3000, 5000, 8000, 12000].forEach(function(ms){
-      setTimeout(function(){ try{ dnxPegelSeite(); dnxSeiteSync(); }catch(e){} }, ms);
-    });
-    setInterval(function(){
-      try{ dnxPegelSeite(); dnxSeiteSync(); }catch(e){}
-    }, 800);
-  }catch(ePS){}
-
-  /* einmalig: Pegel wieder auf rechts ziehen (auch wenn links gespeichert war) */
-  try{
-    if(localStorage.getItem("dnx.pegel.links.v5") !== "1"){
-      localStorage.setItem("dnx.pegel.seite", "L");
-      localStorage.removeItem("dnx.wfpro.pos");     /* alte Links-Position vergessen */
-      try{                                          /* und aus dem Geometrie-Zustand */
-        var gs = JSON.parse(localStorage.getItem("dnx.wfpro.state.v3") || "null");
-        if(gs && typeof gs === "object"){
-          if("left" in gs){ delete gs.left; }
-          if("top" in gs && gs.top !== null && isFinite(gs.top) && gs.top < 0){ gs.top = 104; }
-          localStorage.setItem("dnx.wfpro.state.v3", JSON.stringify(gs));
-        }
-      }catch(eG){}
-      localStorage.setItem("dnx.pegel.links.v5", "1");
-    }
-    /* Zeitachse gehoert nach rechts - einmalig durchsetzen */
-    if(localStorage.getItem("dnx.zeitachse.rechts.v6") !== "1"){
-      localStorage.setItem("dnx.zeitachse.seite", "R");
-      localStorage.setItem("dnx.zeitachse.rechts.v6", "1");
-    }
-  }catch(ePR){}
-  function dnxSeiteSync(){
-    var bs = document.querySelectorAll("#dnx-tools-box .dnx-seite");
-    for(var i = 0; i < bs.length; i++){
-      var k = bs[i].getAttribute("data-k"), sd = bs[i].getAttribute("data-s");
-      var an = (dnxSeiteHolen(k) === sd);
-      try{
-        bs[i].style.setProperty("background", an ? "#1f8f52" : "#232a26", "important");
-        bs[i].style.setProperty("color", an ? "#f2fff8" : "#9fb8a8", "important");
-        bs[i].style.setProperty("border-color", an ? "#35ff83" : "rgba(120,140,150,.45)", "important");
-      }catch(e){}
-    }
-  }
-  function dnxToolsUi(ui){
-    if(!ui || document.getElementById("dnx-tools-box")){ return; }
-    var box = document.createElement("div");
-    box.id = "dnx-tools-box";
-    box.style.cssText = "margin:8px 0 6px;padding:6px 8px;border:1px solid rgba(50,255,120,.45);border-radius:8px;";
-    var h = document.createElement("div");
-    h.textContent = "Werkzeuge an/aus";
-    h.style.cssText = "font-weight:700;margin-bottom:4px;";
-    box.appendChild(h);
-
-    TOOL_DEFS.forEach(function(d){
-      var row = document.createElement("label");
-      row.style.cssText = "display:flex;align-items:center;gap:6px;padding:1px 0;cursor:pointer;";
-      var cb = document.createElement("input");
-      cb.type = "checkbox";
-      cb.id = "dnx-tool-" + d.k;
-      cb.onchange = function(){
-        dnxToolsAuftrag++;  /* persoenliche Wahl stoppt alte Nachlaufversuche */
-        try{ d.set(cb.checked); }catch(e){}
-        if(d.k === "zeitachse"){
-          try{ if(d.is() === !!cb.checked){ current.mt = cb.checked ? 1 : 0; save(current); if(current.mt){ dnxZeitAnwenden(current); } } }catch(eTZ){}
-        }
-        dnxToolsSave();
-        if(uiHooks.flash){ uiHooks.flash("Werkzeug: " + d.label + " " + (cb.checked ? "an" : "aus")); }
-      };
-      var tx = document.createElement("span");
-      tx.textContent = d.label;
-      row.appendChild(cb); row.appendChild(tx);
-      if(DNX_SEITEN[d.k]){
-        var grp = document.createElement("span");
-        grp.style.cssText = "display:inline-flex;gap:2px;margin-left:auto;";
-        ["L", "R"].forEach(function(sd){
-          var tb = document.createElement("button");
-          tb.type = "button";
-          tb.className = "dnx-seite";
-          tb.setAttribute("data-k", d.k);
-          tb.setAttribute("data-s", sd);
-          tb.textContent = sd;
-          tb.title = (sd === "L" ? "links anzeigen" : "rechts anzeigen");
-          tb.style.cssText = "width:19px;height:17px;padding:0;margin:0;font:700 10px/1 Arial;cursor:pointer;"
-            + "border-radius:3px;border:1px solid rgba(120,140,150,.45);background:#232a26;color:#9fb8a8;";
-          tb.onmousedown = function(ev){ if(ev){ ev.preventDefault(); ev.stopPropagation(); } };
-          tb.onclick = function(ev){
-            if(ev){ ev.preventDefault(); ev.stopPropagation(); }
-            dnxSeiteSetzen(d.k, sd);
-            dnxSeiteSync();
-          };
-          grp.appendChild(tb);
-        });
-        row.appendChild(grp);
-      }
-      box.appendChild(row);
-      toolEls[d.k] = cb;
-    });
-
-    var hint = document.createElement("div");
-    hint.textContent = "Haken setzen wirkt sofort · mit \u201eStandard f\u00fcr alle\u201c oder Speichern wird es mitgeteilt";
-    hint.style.cssText = "opacity:.7;font-size:10.5px;margin-top:4px;";
-    box.appendChild(hint);
-
-    ui.appendChild(box);
-    dnxToolsSyncUi();
-    dnxSeiteSync();
-    setTimeout(function(){ try{ dnxPegelSeite(); dnxSlotsSeite(); dnxSeiteSync(); }catch(e){} }, 1200);
-    setTimeout(function(){ try{ dnxPegelSeite(); dnxSlotsSeite(); dnxSeiteSync(); }catch(e){} }, 4000);
-    setInterval(function(){ try{ dnxToolsSyncUi(); dnxSeiteSync(); }catch(e){} }, 1200);
-  }
-
-  function dnxToolsSyncUi(){
-    TOOL_DEFS.forEach(function(d){
-      var cb = toolEls[d.k];
-      if(!cb){ return; }
-      var v = null;
-      try{ v = d.is(); }catch(e){ v = null; }
-      if(v === null){ if(!cb.disabled){ cb.disabled = true; cb.parentNode.style.opacity = ".45"; } return; }
-      if(cb.disabled){ cb.disabled = false; cb.parentNode.style.opacity = "1"; }
-      if(cb.checked !== v){ cb.checked = v; }
-    });
-  }
-
-  function dnxStdStatus(t, fehler){
-    dnxShareStatus(t);
-    try{
-      var e = document.getElementById("dnx-std-state");
-      if(e){ e.textContent = t; e.setAttribute("data-fehler", fehler ? "1" : "0"); }
-    }catch(e){}
   }
   function dnxStdSenden(){
-    var jetzt = Date.now();
-    /* pointerup-Fallback und normaler click koennen denselben Knopf erreichen. */
-    if(dnxStdSchreibt || jetzt - dnxStdLetzterKlick < 900){ return false; }
-    dnxStdLetzterKlick = jetzt;
-    dnxStdSchreibt = true;
-    dnxStdSchreibNr++;
     var tok = "";
     try{ tok = localStorage.getItem(STD_KEY) || ""; }catch(e){}
-    var m3 = dnx3dLesen();
     var view = {
       wf: dnxWfId(),
       wf_an: dnxAnWf() ? 1 : 0,
       fft: dnxFftId(),
       fft_an: dnxFftAn() ? 1 : 0,
-      m3d: m3.mode,
-      m3d_flip: m3.flip,
-      tools: dnxToolsSnapshot(),
-      skin: shareKeep(current),
-      farben: farbStand(),
-      effekte: { pfx: pfxId(), smeter: smeterStyleId() },
-      seiten: { zeitachse: dnxSeiteHolen("zeitachse"), pegel: dnxSeiteHolen("pegel"), dmr: dnxSeiteHolen("dmr") },
-      spektrum: (typeof window.__dnxSpecVollLesen === "function") ? window.__dnxSpecVollLesen() : {},
-      pegel: (function () {
-        var p = (typeof window.__dnxPegelLesen === "function") ? window.__dnxPegelLesen() : {};
-        /* [DNX-PEGEL-2] Abweichungen je Profil mitnehmen. */
-        try {
-          if (typeof window.__dnxPegelProfile === "function") {
-            var pm = window.__dnxPegelProfile();
-            if (pm && Object.keys(pm).length) { p.profile = pm; }
-          }
-        } catch (ePm) { }
-        return p;
-      })()
+      skin: shareKeep(current)
     };
-    /* Den wirklich sichtbaren Zustand teilen, nicht einen veralteten zweiten
-       Zeitachsenwert im Theme. */
-    if(view.tools.t_zeitachse === 0 || view.tools.t_zeitachse === 1){ view.skin.mt = view.tools.t_zeitachse; }
-    dnxStdStatus("Wird gespeichert ...", false);
-    var controller = (typeof AbortController !== "undefined") ? new AbortController() : null;
-    var timer = controller ? setTimeout(function(){ controller.abort(); }, 10000) : null;
-    var opt = {
+    dnxShareStatus("setze Standard ...");
+    shareFetch("/dnx/styler/std", {
       method: "POST",
       cache: "no-store",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ author: shareAuth(), token: tok, view: view })
-    };
-    if(controller){ opt.signal = controller.signal; }
-    shareFetch("/dnx/styler/std", opt).then(function(j){
+    }).then(function(j){
       if(j && j.ok){
         try{ if(j.token){ localStorage.setItem(STD_KEY, String(j.token)); } }catch(e2){}
-        /* Die Antwort enthaelt den wirklich gespeicherten Stand. Der Sender
-           merkt ihn nur vor und setzt sich nicht selbst noch einmal zurueck. */
-        if(j.std && j.ts){
-          /* Auch beim Sender den bewusst ausgeschalteten Zustand festhalten,
-             ohne eine inzwischen persoenlich wieder geoeffnete Ansicht zu schliessen. */
-          try{ if(j.std.fft_an === 0 && !dnxFftAn() && window.__dnxPalZeile){ window.__dnxPalZeile.ruhig = 1; window.__dnxPalZeile.geoeffnet = 0; } }catch(ePF2){}
-          try{
-            var ta = j.std.tools && j.std.tools.t_zeitachse;
-            if((ta === 0 || ta === 1) && window.dnxZeit && (dnxZeit.status().an ? 1 : 0) === ta){ current.mt = ta; save(current); }
-          }catch(eTS){}
-          dnxStdMerken(j);
-        }
-        dnxStdStatus("Gespeichert – wird für alle übernommen.", false);
-        try{ if(uiHooks.flash){ uiHooks.flash("Standard fuer alle gespeichert"); } }catch(eF){}
+        dnxShareStatus("Standard fuer alle gespeichert");
+        if(uiHooks.flash){ uiHooks.flash("Standard fuer alle gespeichert"); }
       } else {
-        var m = shareClean(((j && j.error) || "abgelehnt"), 50);
-        dnxStdStatus("Nicht gespeichert: " + m, true);
-        try{ if(uiHooks.flash){ uiHooks.flash("Standard nicht gespeichert: " + m); } }catch(eF2){}
+        var m = shareClean(((j && j.error) || "abgelehnt"), 34);
+        dnxShareStatus("Standard: " + m);
+        if(uiHooks.flash){ uiHooks.flash("Standard nicht gespeichert: " + m); }
       }
     }).catch(function(){
-      dnxStdStatus("Nicht gespeichert: Teilen-Server nicht erreichbar.", true);
-      try{ if(uiHooks.flash){ uiHooks.flash("Standard: Server nicht erreichbar"); } }catch(eF3){}
-    }).then(function(){
-      if(timer){ clearTimeout(timer); }
-      dnxStdSchreibt = false;
-      if(dnxStdNochmal && !dnxStdFragt){ dnxStdNochmal = false; dnxStdAbfragen(); }
+      dnxShareStatus("Server nicht erreichbar");
+      if(uiHooks.flash){ uiHooks.flash("Standard: Server nicht erreichbar"); }
     });
-    return true;
   }
   function dnxWfUi(ui){
     function opts(sel, liste, wert){
@@ -14236,17 +11799,8 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
       o4.textContent = DNX_FFT[k4][1];
       fftSel.appendChild(o4);
     }
-    var g4d = document.createElement("optgroup");
-    g4d.label = "Palette DNX (" + DNX_WF_DNX.length + ")";
-    fftSel.appendChild(g4d);
-    for(k4 = 0; k4 < DNX_WF_DNX.length; k4++){
-      o4 = document.createElement("option");
-      o4.value = "pal:" + DNX_WF_DNX[k4][0];
-      o4.textContent = DNX_WF_DNX[k4][1];
-      g4d.appendChild(o4);
-    }
     var g4 = document.createElement("optgroup");
-    g4.label = "Palette MultiSDR (" + dnxMsdrList().length + ")";
+    g4.label = "Palette MultiSDR (188)";
     fftSel.appendChild(g4);
     var liste4 = dnxMsdrList();
     for(k4 = 0; k4 < liste4.length; k4++){
@@ -14277,50 +11831,6 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     wfEls.state = st;
     dnxWfState();
   }
-  /* Ein semantischer Block enthaelt die echten vorhandenen Steuerelemente;
-     es werden keine Einstellungen nach geratenen Bezeichnungen verschoben. */
-  function dnxUiBlock(id, titel, standardOffen){
-    if(!document.getElementById("dnx-klar-style")){
-      var st = document.createElement("style"); st.id = "dnx-klar-style";
-      st.textContent = ""
-        + "#dnx-styler-ui .dnx-blk{margin:7px 0;border:1px solid rgba(50,255,120,.43);border-radius:9px;background:rgba(10,29,20,.72);overflow:hidden;}"
-        + "#dnx-styler-ui .dnx-blk>summary{list-style:none;cursor:pointer;padding:7px 10px;color:#c5ffdc;font:700 13px/1.35 'Segoe UI',Arial,sans-serif;letter-spacing:.1px;user-select:none;}"
-        + "#dnx-styler-ui .dnx-blk>summary::-webkit-details-marker{display:none;}"
-        + "#dnx-styler-ui .dnx-blk>summary:before{content:'▸';display:inline-block;width:17px;color:#53ed98;}"
-        + "#dnx-styler-ui .dnx-blk[open]>summary:before{content:'▾';}"
-        + "#dnx-styler-ui .dnx-blk[open]>summary{border-bottom:1px solid rgba(50,255,120,.2);background:rgba(31,143,82,.13);}"
-        + "#dnx-styler-ui .dnx-blk-body{padding:8px 10px 10px;color:#eaf8ee;font:12px/1.4 'Segoe UI',Arial,sans-serif;}"
-        + "#dnx-styler-ui .dnx-blk-body label{font-size:12px;}"
-        + "#dnx-styler-ui .dnx-blk-body .dnx-grp{font-size:12px;margin:12px 0 6px;padding:4px 7px;}"
-        + "#dnx-styler-ui .dnx-blk-body .dnx-feld{margin:5px 0;padding:5px 7px;}"
-        + "#dnx-styler-ui .dnx-blk-body .dnx-feld-name{font-size:12px;}"
-        + "#dnx-styler-ui .dnx-blk-body .dnx-feld-hilfe{font-size:10px;line-height:1.3;}"
-        + "#dnx-styler-ui .dnx-subtitle{margin:12px 0 5px;color:#9fffc4;font:700 12px/1.35 'Segoe UI',Arial,sans-serif;}"
-        + "#dnx-styler-ui #dnx-share-url,#dnx-styler-ui #dnx-share-name,#dnx-styler-ui #dnx-share-author{box-sizing:border-box;width:100%;min-width:0;padding:5px;border:1px solid #356;border-radius:4px;background:#12201a;color:#e8f5ec;}"
-        + "#dnx-styler-ui #dnx-share-standard-wrap{margin:11px 0 8px;padding:9px;border:1px solid rgba(83,237,152,.45);border-radius:7px;background:rgba(31,143,82,.13);}"
-        + "#dnx-styler-ui #dnx-share-std{display:block;width:100%;min-height:34px;padding:6px 8px;cursor:pointer;border:1px solid rgba(130,255,180,.6);border-radius:5px;background:#1f8f52;color:#fff;font:700 13px 'Segoe UI',Arial,sans-serif;}"
-        + "#dnx-styler-ui #dnx-share-std:hover{background:#25a862;}"
-        + "#dnx-styler-ui #dnx-std-state{margin:5px 0 0;color:#c2e5cd;font:11px/1.35 'Segoe UI',Arial,sans-serif;}"
-        + "#dnx-styler-ui #dnx-std-state[data-fehler='1']{color:#ffd28a;}"
-        + "#dnx-styler-ui #dnx-share-list{margin-bottom:2px;}"
-        + "#dnx-styler-ui #dnx-share-ownreset,#dnx-styler-ui #dnx-share-save,#dnx-styler-ui #dnx-share-reload,#dnx-styler-ui #dnx-share-del,#dnx-styler-ui #dnx-styler-intro-more{padding:5px 7px;border:1px solid rgba(80,205,125,.6);border-radius:5px;background:#14261b;color:#e8f5ec;font:600 11px 'Segoe UI',Arial,sans-serif;cursor:pointer;}"
-        + "#dnx-styler-ui #dnx-share-ownreset:hover,#dnx-styler-ui #dnx-share-save:hover,#dnx-styler-ui #dnx-share-reload:hover,#dnx-styler-ui #dnx-share-del:hover,#dnx-styler-ui #dnx-styler-intro-more:hover{background:#204332;}";
-      (document.head || document.documentElement).appendChild(st);
-    }
-    var box = document.createElement("details"); box.id = id; box.className = "dnx-blk";
-    var sum = document.createElement("summary"); sum.className = "dnx-blk-h"; sum.textContent = titel;
-    box.appendChild(sum);
-    var body = document.createElement("div"); body.className = "dnx-blk-body"; box.appendChild(body); box._dnxBody = body;
-    var key = "dnx.blk." + id, saved = null;
-    try{ saved = localStorage.getItem(key); }catch(e){}
-    box.open = saved === null ? !!standardOffen : saved === "1";
-    box.addEventListener("toggle", function(){ try{ localStorage.setItem(key, box.open ? "1" : "0"); }catch(e){} });
-    return box;
-  }
-  function dnxStdUiErlaubt(){
-    try{ return !!(window.DNXReceiverRights && typeof window.DNXReceiverRights.can === "function" && window.DNXReceiverRights.can("styler")); }
-    catch(e){ return false; }
-  }
   function buildUi(){
     if(ui) return ui;
     ui = document.createElement("div");
@@ -14330,7 +11840,7 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     var head = document.createElement("div");
     head.className = "head";
     var h = document.createElement("h4");
-    h.textContent = "DNX Styler v6.28";   /* v6.28: 3D-Auswahl und Nachlauf ohne Konflikt */   /* v6.17: Spektrum-Haken waelt sich selbst, Felder in Klartext */
+    h.textContent = "DNX Styler v3.46";
     var hx = document.createElement("button");
     hx.id = "dnx-styler-close";
     hx.type = "button";
@@ -14510,8 +12020,6 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
       ztSel.value = String((current.mt_seite | 0) === 0 ? 0 : 1);
       ztTick.checked = (current.mt_ticks | 0) === 1;
       ztScr.checked = (current.mt_scroller | 0) === 1;
-      if(smSel){ smSel.value = smeterStyleId(); }
-      if(pfxSel){ pfxSel.value = pfxId(); }
     }
     ui.__sync = syncInputs;
 
@@ -14609,32 +12117,21 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     ztTitel.className = "head2";
     ui.appendChild(ztTitel);
     var ztBox = document.createElement("input");
-    ztBox.setAttribute("data-dnx-capability","timeline");
     ztBox.type = "checkbox";
     ztBox.checked = (current.mt | 0) === 1;
-    ztBox.onchange = function(){
-      current.mt = ztBox.checked ? 1 : 0; current.preset = "custom"; apply(current);
-      try{ var ztm = dnxToolsEigen() || {}; ztm.t_zeitachse = current.mt; localStorage.setItem(TOOLS_KEY, JSON.stringify(ztm)); }catch(eTZ){}
-    };
+    ztBox.onchange = function(){ current.mt = ztBox.checked ? 1 : 0; current.preset = "custom"; apply(current); };
     var ztLbl = document.createElement("label");
     ztLbl.textContent = "Zeitachse anzeigen ";
     ztLbl.appendChild(ztBox);
     ui.appendChild(ztLbl);
     var ztSel = document.createElement("select");
-    ztSel.setAttribute("data-dnx-capability","timeline");
     [["1", "rechts"], ["0", "links"]].forEach(function(o){
       var op = document.createElement("option"); op.value = o[0]; op.textContent = o[1]; ztSel.appendChild(op);
     });
     ztSel.value = String((current.mt_seite | 0) === 0 ? 0 : 1);
-    ztSel.onchange = function(){
-      current.mt_seite = parseInt(ztSel.value, 10);
-      current.preset = "custom";
-      DNX_SEITE_FEST = false;
-      apply(current);
-    };
+    ztSel.onchange = function(){ current.mt_seite = parseInt(ztSel.value, 10); current.preset = "custom"; apply(current); };
     field("Seite", ui, ztSel);
     var ztTick = document.createElement("input");
-    ztTick.setAttribute("data-dnx-capability","timeline");
     ztTick.type = "checkbox";
     ztTick.checked = (current.mt_ticks | 0) === 1;
     ztTick.onchange = function(){ current.mt_ticks = ztTick.checked ? 1 : 0; current.preset = "custom"; apply(current); };
@@ -14643,7 +12140,6 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     ztTickLbl.appendChild(ztTick);
     ui.appendChild(ztTickLbl);
     var ztScr = document.createElement("input");
-    ztScr.setAttribute("data-dnx-capability","timeline");
     ztScr.type = "checkbox";
     ztScr.checked = (current.mt_scroller | 0) === 1;
     ztScr.onchange = function(){ current.mt_scroller = ztScr.checked ? 1 : 0; current.preset = "custom"; apply(current); };
@@ -14733,7 +12229,6 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     };
     field("S-Meter", ui, smSel);
     dnxWfUi(ui);
-    dnxToolsUi(ui);
     var pfxSel = document.createElement("select");
     PFX.forEach(function(o){
       var po = document.createElement("option");
@@ -14773,77 +12268,21 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     shB2.id = "dnx-share-reload";
     shB2.textContent = "Liste laden";
     shB2.onclick = function(){ dnxShareRefresh(function(){ dnxShareFill(); }); };
+    var shB3 = document.createElement("button");
+    shB3.id = "dnx-share-std";
+    shB3.textContent = "Standard fuer alle";
+    shB3.title = "Diesen Zustand (Wasserfall/Spektrum an-aus, Paletten, Aussehen) als Start fuer alle Besucher setzen";
+    shB3.style.marginLeft = "4px";
+    shB3.onclick = function(){ dnxStdSenden(); };
     shRow.appendChild(shB1);
     shRow.appendChild(shB2);
+    shRow.appendChild(shB3);
     ui.appendChild(shRow);
     var shList = document.createElement("select");
     shList.id = "dnx-share-list";
     shList.onchange = function(){ dnxShareApply(shList.value); };
-    field("Gemeinsame Einstellungen: auswählen", ui, shList);
+    field("Gemeinsame Einstellungen: auswaehlen", ui, shList);
     shareEls.list = shList;
-    var shStdWrap = document.createElement("div"); shStdWrap.id = "dnx-share-standard-wrap";
-    var shStd = document.createElement("button"); shStd.id = "dnx-share-std"; shStd.type = "button";
-    shStd.setAttribute("data-a", "std");
-    shStd.title = "Alle aktuellen Styler-Einstellungen als Standard speichern und an offene Empfänger weitergeben";
-    shStd.textContent = "Standard für alle";
-    shStd.addEventListener("click", function(){
-      if(!dnxStdUiErlaubt()){ return; }
-      if(window.__dnxFarbAktionen && window.__dnxFarbAktionen.std){ window.__dnxFarbAktionen.std(); }
-      else { dnxStdSenden(); }
-    });
-    var shStdState = document.createElement("div"); shStdState.id = "dnx-std-state";
-    shStdState.setAttribute("role", "status"); shStdState.setAttribute("aria-live", "polite");
-    shStdState.textContent = "Überträgt alle Styler-Einstellungen auch an offene Empfänger. Persönliche Styler-Werte werden ersetzt.";
-    shStdWrap.appendChild(shStd); shStdWrap.appendChild(shStdState); ui.appendChild(shStdWrap);
-    var shDel = document.createElement("button");
-    shDel.id = "dnx-share-del";
-    shDel.textContent = "Ausgewaehlten Eintrag loeschen";
-    shDel.style.cssText = "margin-top:4px;";
-    shDel.onclick = function(){
-      var id = shList && shList.value ? shList.value : "";
-      if(!id){ dnxShareStatus("kein Eintrag ausgewaehlt"); return; }
-      var autor = shareEls.author ? shareClean(shareEls.author.value || "", 24) : "";
-      var tok = "";
-      try{ tok = localStorage.getItem("dnx_styler_share_tok_" + id) || ""; }catch(e){}
-      dnxShareStatus("loesche ...");
-      shareFetch("/dnx/styler/del", {
-        method: "POST",
-        cache: "no-store",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: id, token: tok, author: autor })
-      }).then(function(j){
-        if(j && j.ok){
-          shareInfo.count = j.count | 0;
-          shareInfo.users = j.users | 0;
-          shareInfo.st = "ok";
-          if(j.list){ shareInfo.list = j.list; }
-          dnxShareCount(); dnxShareFill();
-          dnxShareStatus("Eintrag geloescht");
-          if(uiHooks.flash){ uiHooks.flash("Eintrag geloescht"); }
-        } else {
-          dnxShareStatus("Loeschen abgelehnt");
-        }
-      }).catch(function(){ dnxShareStatus("Server nicht erreichbar"); });
-    };
-    ui.appendChild(shDel);
-
-    var shOwnReset = document.createElement("button");
-    shOwnReset.id = "dnx-share-ownreset";
-    shOwnReset.textContent = "Eigene Einstellung zuruecksetzen";
-    shOwnReset.title = "Entfernt die nur in diesem Browser gespeicherte Einstellung";
-    shOwnReset.style.cssText = "margin-top:4px;";
-    shOwnReset.onclick = function(){
-      try{ localStorage.removeItem(KEY); }catch(e){}
-      try{ localStorage.removeItem(TOOLS_KEY); }catch(e){}
-      current = ensureDefaults(PRESETS.dnx);
-      save(current); apply(current);
-      if(uiHooks.sync){ try{ uiHooks.sync(); }catch(e2){} }
-      dnxToolsSave();
-      dnxShareStatus("eigene Einstellung geloescht");
-      if(uiHooks.flash){ uiHooks.flash("Eigene Einstellung zurueckgesetzt"); }
-    };
-    ui.appendChild(shOwnReset);
-
     var shState = document.createElement("div");
     shState.id = "dnx-share-state";
     shState.style.cssText = "margin-top:2px;font-size:10px;color:#9fb8a8;height:14px;line-height:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
@@ -14885,146 +12324,15 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     var flashEl = document.createElement("div");
     flashEl.style.cssText = "margin-top:6px;color:#ffe9a8;font-size:11px;height:15px;line-height:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
     ui.appendChild(flashEl);
-    /* v6.26: sichtbare Blöcke nach Funktion. Vorhandene Knoten samt Listenern,
-       Rechten und Werten werden nur umgehaengt, nicht neu erzeugt. */
-    function klarOrdnen(){
-      var emp = dnxUiBlock("dnx-blk-receiver", "Receiver-Darstellung", false);
-      var wf = dnxUiBlock("dnx-blk-wasserfall", "Wasserfall & 3D", false);
-      var sp = dnxUiBlock("dnx-blk-spektrum", "Spektrum", false);
-      var werk = dnxUiBlock("dnx-blk-tools", "Werkzeuge an / aus", false);
-      var zeit = dnxUiBlock("dnx-blk-zeit", "Zeitachse", false);
-      var teilen = dnxUiBlock("dnx-blk-teilen", "Teilen & gemeinsame Einstellungen", true);
-      function add(b, n){ if(n){ b._dnxBody.appendChild(n); } }
-      function fieldAdd(b, n){
-        if(!n){ return; }
-        var l = n.previousElementSibling;
-        if(l && l.tagName === "LABEL"){ add(b, l); }
-        add(b, n);
-      }
-      function sub(b, text){
-        var x = document.createElement("div"); x.className = "dnx-subtitle"; x.textContent = text; add(b, x);
-      }
-      function sliderAdd(b, k){
-        var e = sliders[k] && sliders[k].input;
-        var f = e && e.closest(".dnx-feld"); if(f){ add(b, f); }
-      }
-      add(emp, selLbl); add(emp, sel);
-      ["accent", "bg", "panel", "text"].forEach(function(k){ fieldAdd(emp, colors[k]); });
-      sub(emp, "Form"); ["radius", "glow"].forEach(function(k){ sliderAdd(emp, k); });
-      sub(emp, "Effekte"); ["fx", "hover", "sound", "pitch"].forEach(function(k){ sliderAdd(emp, k); });
-      add(emp, rhLbl); add(emp, stTitel); add(emp, stLbl); add(emp, stfLbl); add(emp, stAusLbl);
-      add(emp, stPosLbl); add(emp, stPosRow);
-      fieldAdd(emp, smSel); fieldAdd(emp, pfxSel); add(emp, smState);
-      sub(emp, "Eigene Receiver-Vorlage"); add(emp, pcLbl); add(emp, pcRow); add(emp, pcBtns); add(emp, note);
-      add(wf, wfEls.anWf && wfEls.anWf.closest("label")); fieldAdd(wf, wfEls.sel); add(wf, wfEls.state);
-      add(sp, wfEls.anFft && wfEls.anFft.closest("label")); fieldAdd(sp, wfEls.fft);
-      add(werk, ui.querySelector("#dnx-tools-box"));
-      add(zeit, ztTitel); add(zeit, ztLbl); fieldAdd(zeit, ztSel); add(zeit, ztTickLbl); add(zeit, ztScrLbl); add(zeit, ztHin);
-      ["mt_abstand", "mt_schrift", "mt_bg", "mt_fg", "mt_min"].forEach(function(k){ sliderAdd(zeit, k); });
-      sub(teilen, "Eigene Einstellungen"); add(teilen, row); add(teilen, shOwnReset);
-      fieldAdd(teilen, shName); fieldAdd(teilen, shAuth);
-      sub(teilen, "Gemeinsam nutzen"); fieldAdd(teilen, shUrl); add(teilen, shRow);
-      fieldAdd(teilen, shList); add(teilen, shStdWrap); add(teilen, shDel); add(teilen, shState); add(teilen, fileInput);
-      /* Alte Abschnittsueberschriften sind jetzt durch echte Blocknamen ersetzt. */
-      Array.prototype.forEach.call(ui.querySelectorAll(":scope > .dnx-grp"), function(e){ e.remove(); });
-      /* Rueckmeldung bleibt sichtbar, auch wenn der gerade bediente Block zu ist. */
-      ui.insertBefore(flashEl, introEls.more || selLbl);
-      /* ---- Pegel-Block [DNX-PEGEL-1] ---- */
-      var peg = dnxUiBlock("dnx-blk-pegel", "Pegel (Wasserfall)", false);
-      try {
-        var pegBody = peg._dnxBody;
-        function pegZeile(titel, min, max, schritt, einheit) {
-          var feld = document.createElement("div"); feld.className = "dnx-feld";
-          var lbl = document.createElement("label"); lbl.textContent = titel;
-          var zeile = document.createElement("div");
-          zeile.style.cssText = "display:flex;align-items:center;gap:8px;margin-top:2px";
-          var inp = document.createElement("input");
-          inp.type = "range"; inp.min = String(min); inp.max = String(max); inp.step = String(schritt);
-          inp.style.cssText = "flex:1 1 auto;min-width:0";
-          var aus = document.createElement("span");
-          aus.style.cssText = "min-width:52px;text-align:right;font-variant-numeric:tabular-nums;color:#9fe8bf;font-size:12px";
-          zeile.appendChild(inp); zeile.appendChild(aus);
-          feld.appendChild(lbl); feld.appendChild(zeile);
-          pegBody.appendChild(feld);
-          return { input: inp, ausgabe: aus, einheit: einheit };
-        }
-        var pegO = pegZeile("Offset (Fensterbreite)", -12, 52, 0.5, "");
-        var pegR = pegZeile("Range (Lage im Fenster)", -60, 60, 1, " %");
-        var pegC = pegZeile("Kontrast", 0, 100, 1, "");
-
-        var pegAutoZeile = document.createElement("label");
-        pegAutoZeile.style.cssText = "display:flex;align-items:center;gap:7px;margin:8px 0 2px;font-size:12px";
-        var pegAuto = document.createElement("input"); pegAuto.type = "checkbox";
-        var pegAutoText = document.createElement("span");
-        pegAutoText.textContent = "Automatik (Fenster selbst messen)";
-        pegAutoZeile.appendChild(pegAuto); pegAutoZeile.appendChild(pegAutoText);
-        pegBody.appendChild(pegAutoZeile);
-
-        var pegKnopfZeile = document.createElement("div");
-        pegKnopfZeile.style.cssText = "display:flex;gap:8px;margin-top:9px;flex-wrap:wrap";
-        var pegBtnProfil = document.createElement("button");
-        pegBtnProfil.type = "button"; pegBtnProfil.className = "dnx-btn";
-        pegBtnProfil.textContent = "Für dieses Profil merken";
-        var pegBtnAlle = document.createElement("button");
-        pegBtnAlle.type = "button"; pegBtnAlle.className = "dnx-btn";
-        pegBtnAlle.textContent = "Für alle übernehmen";
-        pegKnopfZeile.appendChild(pegBtnProfil); pegKnopfZeile.appendChild(pegBtnAlle);
-        pegBody.appendChild(pegKnopfZeile);
-
-        var pegHinweis = document.createElement("div");
-        pegHinweis.className = "dnx-subtitle";
-        pegHinweis.textContent = "Wirkt sofort bei dir. \"Für alle übernehmen\" schiebt die Werte zu allen offenen Empfängern - ohne F5.";
-        pegBody.appendChild(pegHinweis);
-
-        var pegSperre = false;
-        function pegAktualisieren() {
-          if (typeof window.__dnxPegelLesen !== "function") { return; }
-          var s = null;
-          try { s = window.__dnxPegelLesen(); } catch (eL) { return; }
-          if (!s) { return; }
-          pegSperre = true;
-          try {
-            if (isFinite(s.offset)) { pegO.input.value = s.offset; pegO.ausgabe.textContent = (Math.round(s.offset * 10) / 10) + pegO.einheit; }
-            if (isFinite(s.range)) { pegR.input.value = s.range; pegR.ausgabe.textContent = (Math.round(s.range * 10) / 10) + pegR.einheit; }
-            if (isFinite(s.kontrast)) { pegC.input.value = s.kontrast; pegC.ausgabe.textContent = (Math.round(s.kontrast * 10) / 10) + pegC.einheit; }
-            pegAuto.checked = !!s.autoFit;
-          } catch (eA2) { }
-          pegSperre = false;
-        }
-        function pegSenden(was) {
-          if (pegSperre) { return; }
-          try { if (typeof window.__dnxPegelSet === "function") { window.__dnxPegelSet(was); } } catch (eS) { }
-          pegAktualisieren();
-        }
-        pegO.input.addEventListener("input", function () { pegSenden({ offset: parseFloat(this.value) }); });
-        pegR.input.addEventListener("input", function () { pegSenden({ range: parseFloat(this.value) }); });
-        pegC.input.addEventListener("input", function () { pegSenden({ kontrast: parseFloat(this.value) }); });
-        pegAuto.addEventListener("change", function () { pegSenden({ autoFit: this.checked ? 1 : 0 }); });
-        pegBtnProfil.addEventListener("click", function () {
-          var gut = false;
-          try { gut = (typeof window.__dnxPegelMerken === "function") && window.__dnxPegelMerken(); } catch (eM) { }
-          try { flash(gut ? "Pegel für dieses Profil gemerkt" : "Kein Profil erkannt - bitte Profil wählen"); } catch (eF) { }
-        });
-        pegBtnAlle.addEventListener("click", function () {
-          try { dnxStdSenden(); } catch (eStd) { }
-        });
-        try { window.__dnxPegelSync = pegAktualisieren; } catch (eZ) { }
-        try { pegAktualisieren(); } catch (eS2) { }
-      } catch (ePeg) { console.warn("Styler: Pegel-Block", ePeg); }
-      ui.appendChild(emp); ui.appendChild(peg); ui.appendChild(wf); ui.appendChild(sp); ui.appendChild(werk); ui.appendChild(zeit); ui.appendChild(teilen);
-    }
-    try{ klarOrdnen(); }catch(eOrd){ console.warn("Styler-Ordnung", eOrd); }
     function flash(msg){
       flashEl.textContent = msg;
       setTimeout(function(){ flashEl.textContent = ""; }, 2500);
     }
     ui.__flash = flash;
-    uiHooks.sync = function(){ try{ syncInputs(); }catch(eSy){} try{ if(window.__dnxPegelSync){ window.__dnxPegelSync(); } }catch(ePg2){} };
+    uiHooks.sync = syncInputs;
     uiHooks.flash = flash;
 
     document.body.appendChild(ui);
-    /* Der Farbenblock benoetigt das mit dem Dokument verbundene Fenster. */
-    try{ farbBlockBauen(); }catch(eFb){ console.warn("Farben-Block", eFb); }
     ui.addEventListener("pointerdown", dnxRaiseUi, true);
     dnxUiEscHook();
     syncInputs();
@@ -15060,16 +12368,6 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     var oben = b ? Math.round(b.top) : 20;
     var breit = b ? Math.round(b.width) : 330;
     var hoch = b ? Math.round(b.height) : (vh - 40);
-    /* v6.16: War der Empfaenger-Rahmen ganz schmal oder ausgeblendet (VNC-Bild,
-       Ansicht umschalten, Wasserfall/Spektrum aus), schrumpfte dieses Fenster auf
-       wenige Pixel - Kopfleiste, roter Knopf und Felder waren dann nicht mehr zu
-       erreichen. Deshalb: vernuenftige Mindestbreite. */
-    if(!(breit >= 320)){
-      breit = Math.round(Math.min(Math.max(340, vw * 0.36), vw * 0.62));
-      links = Math.max(4, Math.min(links, vw - breit - 8));
-    }
-    if(breit > vw - 12){ breit = Math.max(320, vw - 12); }
-    if(!(hoch >= 220)){ hoch = Math.max(320, Math.round(vh * 0.62)); }
     if(links + breit > vw - 4){ links = Math.max(4, vw - breit - 4); }
     if(oben < 2){ oben = 2; }
     if(oben + hoch > vh){ hoch = Math.max(240, vh - oben); }
@@ -15088,22 +12386,10 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
   }
   try{ window.dnxStylerAusrichten = dnxUiAusrichten; }catch(e){}
   function toggleUi(){
-    if(!window.DNXReceiverRights||!window.DNXReceiverRights.can("styler"))return;
     var u = buildUi();
-    /* v5.3: falls das Fenster schon einmal gebaut wurde und dabei nicht im
-       Dokument gelandet ist, jetzt sauber anhaengen */
-    if(u && !u.parentNode){ try{ document.body.appendChild(u); }catch(eAp){} }
     u.style.display = "block";
     dnxUiAusrichten();
     dnxRaiseUi();
-    /* Griffe sofort an die richtige Stelle setzen (nicht erst beim naechsten Takt) */
-    try{
-      if(window.__dnxStylerGriffeSync){
-        window.__dnxStylerGriffeSync();
-        setTimeout(window.__dnxStylerGriffeSync, 30);
-        setTimeout(window.__dnxStylerGriffeSync, 260);
-      }
-    }catch(eGr2){}
   }
 
   function addLauncher(){
@@ -15832,7 +13118,7 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     }catch(e){}
     for(var i = dnxFrames.length - 1; i >= 0; i--){
       var f = dnxFrames[i], h = f.__dnxHost;
-      if(!h || !h.isConnected || (h.id === "dnx-styler-ui")){ f.remove(); dnxFrames.splice(i, 1); continue; }
+      if(!h || !h.isConnected){ f.remove(); dnxFrames.splice(i, 1); continue; }
       var r = null;
       try{ r = h.getBoundingClientRect(); }catch(e2){ r = null; }
       if(!r || r.width < 2 || r.height < 2){ f.style.display = "none"; continue; }
@@ -15850,10 +13136,6 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
   }
   try{ window.dnxEckenSync = dnxFrameSync; }catch(e){}
   function dnxFrameFor(host, soft){
-    /* v6.9: Das Styler-Fenster bekommt KEINE dekorativen Eckwinkel mehr - die
-       lagen mit pointer-events:auto genau auf den Resize-Ecken und haben das
-       Ziehen geschluckt ("keine Ecken"). Es hat jetzt eigene Griffe. */
-    if(host && host.id === "dnx-styler-ui"){ return null; }
     for(var i = 0; i < dnxFrames.length; i++){ if(dnxFrames[i].__dnxHost === host) return dnxFrames[i]; }
     var f = document.createElement("div");
     f.className = "dnx-corner-frame";
@@ -15987,52 +13269,6 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     dnxFrameSync();
   }, 500);
   document.addEventListener("click", clickSound, true);
-  /* Ton beim Draufdruecken + Weiterticken solange gehalten wird */
-  document.addEventListener("pointerdown", function(ev){
-    if(ev.button > 0){ return; }
-    if(!dnxSndBereit(ev)){ return; }
-    var t = dnxSndZiel(ev);
-    if(!t){ return; }
-    window.__dnxSndDruck = Date.now();
-    dnxSndHalten(t, ev);
-  }, true);
-  /* v3.91: eine Zeile / ein Menuepunkt unter der Maus = genau ein Pip,
-     beim Wechsel auf die naechste Zeile wieder genau ein Pip. */
-  var DNX_SND_ZEILE = null;
-  document.addEventListener("pointerover", function(ev){
-    if(DNX_SND_AUS){ return; }
-    if(!dnxSndBereit(ev)){ return; }
-    var t = ev.target;
-    if(!t || !t.closest){ return; }
-    var z = t.closest("tr.dnx-pt-row, .dnx-pt-row, .dnx-fm-card, .ui-menu-item, [role='option'], " +
-                      "tr[data-profile], tr[data-id], .profile-row, li[data-profile]");
-    if(!z){ return; }
-    if(z === DNX_SND_ZEILE){ return; }          /* gleiche Zeile - kein neuer Ton */
-    DNX_SND_ZEILE = z;
-    if(Date.now() - (window.__dnxSndKlick || 0) < 90){ return; }
-    window.__dnxSndKlick = Date.now();
-    dnxSndSpielen(z, false);
-  }, true);
-
-  document.addEventListener("pointerup", function(){
-    /* beim Loslassen keinen zweiten Ton nachschieben */
-    window.__dnxSndDruck = Date.now();
-    dnxSndStopp();
-  }, true);
-  document.addEventListener("pointercancel", dnxSndStopp, true);
-  document.addEventListener("mouseup", dnxSndStopp, true);
-  document.addEventListener("touchend", dnxSndStopp, true);
-  window.addEventListener("blur", dnxSndStopp);
-  document.addEventListener("visibilitychange", function(){
-    if(document.hidden){ dnxSndStopp(); }
-  });
-  document.addEventListener("change", function(ev){
-    var t = dnxSndZiel(ev);
-    if(!t){ return; }
-    if(t.tagName === "SELECT" || (t.tagName === "INPUT" && (t.type === "checkbox" || t.type === "radio" || t.type === "range"))){
-      dnxSndSpielen(t, true);
-    }
-  }, true);
   function boot(){
     dnxAnBoot();
     if(!addLauncher()){ setInterval(addLauncher, 1500); }
@@ -16157,72 +13393,6 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
   }
 
   /* ------- Zeitband (eigene Leinwand, 1:1 Bildschirm) ------- */
-  /* DNX_ZT_OPACITY_START
-     v3.86: Zeitachse uebernimmt die Deckkraft aus dem Receiver-Regler
-     (Einstellungen -> Deckkraft), wie die OpenWebRX-Panels. */
-  var ZT_OP_IDS = ["dnx-zt-achse", "dnx-zt-rueck", "dnx-zt-scroll", "dnx-zt-griff", "dnx-zt-play", "dnx-zt-breite-griff"];
-  function dnxZtDeckkraft(){
-    var f = 1;
-    try{
-      if(window.UI && isFinite(window.UI.opacity)){ f = Math.max(10, Math.min(100, window.UI.opacity)) / 100; }
-      else {
-        var sl = document.getElementById("openwebrx-opacity-slider");
-        if(sl){ var v = parseFloat(sl.value); if(isFinite(v)){ f = (v > 2) ? v / 100 : v; } }
-      }
-    }catch(e){ f = 1; }
-    for(var i = 0; i < ZT_OP_IDS.length; i++){
-      var el = document.getElementById(ZT_OP_IDS[i]);
-      if(!el){ continue; }
-      var s2 = String(Math.round(f * 100) / 100);
-      if(el.style.opacity !== s2){ el.style.opacity = s2; }
-    }
-    return f;
-  }
-  try{ setInterval(dnxZtDeckkraft, 800); }catch(e){}
-  /* DNX_ZT_OPACITY_END */
-
-  /* DNX_FENSTER_OPACITY_START
-     v3.98: Auch die eigenen Fenster (Profile, EQ, Wetter, Favoriten, 3D-Tool,
-     Styler ...) folgen der Deckkraft des Receivers - bisher blieben sie
-     deckend, waehrend der Receiver transparent wurde. */
-  var DNX_OP_ROOTS = [
-    "dnx-pt-window", "dnx-eq-win", "dnx-eq-panel", "dnx-fm-window",
-    "dnx-weather-win", "dnx-3dtool-window", "dnx-styler-ui",
-    "dnx-access-panel", "dnx-airmarine-window-ais", "dnx-airmarine-window-adsb",
-    "dnx-project-manager-win", "dnx-dmr-win"
-  ];
-  function dnxFensterDeckkraft(){
-    var f = 1;
-    try{
-      if(window.UI && isFinite(window.UI.opacity)){ f = Math.max(10, Math.min(100, window.UI.opacity)) / 100; }
-      else {
-        var sl = document.getElementById("openwebrx-opacity-slider");
-        if(sl){ var v = parseFloat(sl.value); if(isFinite(v)){ f = (v > 2) ? v / 100 : v; } }
-      }
-    }catch(e){ f = 1; }
-    if(!isFinite(f) || f <= 0){ f = 1; }
-    f = Math.max(0.25, Math.min(1, f));       /* nie ganz unsichtbar */
-    var s2 = String(Math.round(f * 100) / 100);
-    for(var i = 0; i < DNX_OP_ROOTS.length; i++){
-      var el = document.getElementById(DNX_OP_ROOTS[i]);
-      if(el && el.style.opacity !== s2){ el.style.opacity = s2; }
-    }
-    /* Zeitachse immer mitziehen, auch wenn sie neu aufgebaut wurde.
-       v3.96: etwas staerker durchsichtig als die Panels (x0.9) */
-    var fz = Math.max(0.25, Math.round(f * 0.9 * 100) / 100);
-    var s3 = String(fz);
-    for(var z = 0; z < ZT_OP_IDS.length; z++){
-      var zel = document.getElementById(ZT_OP_IDS[z]);
-      if(zel && zel.style.opacity !== s3){ zel.style.opacity = s3; }
-    }
-    return f;
-  }
-  try{ setInterval(dnxFensterDeckkraft, 700); }catch(e){}
-  try{ document.addEventListener("input", function(ev){
-    if(ev && ev.target && ev.target.id === "openwebrx-opacity-slider"){ dnxFensterDeckkraft(); }
-  }, true); }catch(e){}
-  /* DNX_FENSTER_OPACITY_END */
-
   function ztAchseBauen(){
     if(ZT.achse){ return; }
     var a = document.createElement("canvas");
@@ -16733,15 +13903,9 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     if(typeof document === "undefined" || !document.body){ return false; }
     ztAchseBauen(); ztRueckBauen();
     if(!ZT.altAdd && typeof waterfall_add === "function"){
-      /* Andere Plugins (insbesondere 3D) koennen unseren Hook spaeter selbst
-         umschliessen. Der gespeicherte Vorgaenger bleibt daher in der Closure
-         und der Zeitachsen-Hook bleibt beim Ausschalten als Durchleitung
-         erhalten, statt die ganze Kette auf einen alten Stand zurueckzusetzen. */
       ZT.altAdd = waterfall_add;
-      var zeitAltAdd = ZT.altAdd;
       window.waterfall_add = function(){
-        var r = zeitAltAdd.apply(this, arguments);
-        if(!ZT.an){ return r; }
+        var r = ZT.altAdd.apply(this, arguments);
         try{
           ztRateMelden();
           if(ZT.rueckMin > 0){ ztSpeichern(arguments[0]); }
@@ -16749,19 +13913,14 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
         }catch(e){ ZT.fehler = "add: " + e; }
         return r;
       };
-      /* Der 3D-Hook kann bereits darunter liegen. Sein Merkmal weitergeben,
-         damit ein spaeteres 3D-Init ihn nicht versehentlich doppelt einhaengt. */
-      if(zeitAltAdd.__dnx3d){ window.waterfall_add.__dnx3d = true; }
     }
     if(!ZT.altClear && typeof waterfall_clear === "function"){
       ZT.altClear = waterfall_clear;
-      var zeitAltClear = ZT.altClear;
       window.waterfall_clear = function(){
-        var r = zeitAltClear.apply(this, arguments);
-        if(ZT.an){ ZT.speicher = null; ZT.minGemerkt = -1; ZT.zeilen = 0; ztLive(); }
+        var r = ZT.altClear.apply(this, arguments);
+        ZT.speicher = null; ZT.minGemerkt = -1; ZT.zeilen = 0; ztLive();
         return r;
       };
-      if(zeitAltClear.__dnx3d){ window.waterfall_clear.__dnx3d = true; }
     }
     if(ZT.rueckMin > 0){ ztSpeicherInit(ZT.rueckMin); }
     if(!ZT.timer){
@@ -16786,9 +13945,11 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     if(ZT.schiene && ZT.schiene.parentNode){ ZT.schiene.parentNode.removeChild(ZT.schiene); ZT.schiene = null; ZT.griff = null; }
     if(ZT.schild && ZT.schild.parentNode){ ZT.schild.parentNode.removeChild(ZT.schild); ZT.schild = null; }
     if(ZT.play && ZT.play.parentNode){ ZT.play.parentNode.removeChild(ZT.play); ZT.play = null; }
-    /* Hooks nicht aushaengen: das wuerde spaeter aufgelegte Wrapper anderer
-       Plugins entfernen (3D bekommt dann keine FFT-Daten). ZT.an=0 macht
-       den eigenen Hook zu einer kostenguenstigen reinen Durchleitung. */
+    if(ZT.altAdd && typeof waterfall_add === "function"){
+      window.waterfall_add = ZT.altAdd;
+      if(ZT.altClear){ window.waterfall_clear = ZT.altClear; }
+      ZT.altAdd = null; ZT.altClear = null;
+    }
     ZT.rueckAn = 0; ZT.speicher = null; ZT.minGemerkt = -1; ZT.zeilen = 0;
   }
   function dnxZeitStatus(){
@@ -16811,1970 +13972,9 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
                      sofort: ztZeitSofort,
                      live: ztLive, rueckZeit: function(t){ ZT.rueckZeit = t; ZT.rueckAn = 1; ztRueckMalen(); },
                      einst: ZT };
-  /* apply(current) lief beim Start vor der Initialisierung von ZT. Jetzt die
-     gespeicherten Zeitachsenwerte wirklich setzen, auch wenn die globale
-     Revision nach F5 schon bekannt ist und nicht erneut angewendet wird. */
-  function dnxZeitStartGemerkt(){ try{ dnxZeitAnwenden(current); }catch(eZT){} }
-  if(document.body){ dnxZeitStartGemerkt(); }
-  else { document.addEventListener("DOMContentLoaded", dnxZeitStartGemerkt, {once:true}); }
 
   setTimeout(dnxDiag, 3000);
-
-  /* v4.7: Palettendaten zur Laufzeit bereitstellen (fuer die Spektrum-Leiste) */
-  try{
-    window.dnxPalDaten = function(){
-      return { dnx: DNX_WF_DNX, orig: dnxWfOrigListe(), wf: DNX_WF,
-               msdr: (typeof dnxMsdrList === "function") ? dnxMsdrList() : [] };
-    };
-  }catch(ePD){}
-
-/* DNX_SPEC_SETTINGS_START
-   v4.5: Spektrum-Einstellungen als schmale Leiste - Optik wie die
-   3D-Wasserfall-Leiste (Auswahlfelder statt langer Reglerliste).
-   Zusaetzlich: Farbpaletten. Alles im Browser, also auch fuer Gaeste. */
-(function(){
-  if(window.__dnxSpecSettings){ return; }
-  window.__dnxSpecSettings = true;
-
-  var KEY = "dnx.spectrum.darstellung.v2";
-  var STD = { pal: "Original", hg: "Standard", hoehe: 0, hell: 100, kont: 100, saett: 100, hue: 0, weich: 0, deck: 100 };
-
-  var PALETTEN = {
-    "Original":   "",
-    "Feuer":      "sepia(.45) saturate(2.2) hue-rotate(-25deg) contrast(1.15)",
-    "Eis":        "saturate(1.3) hue-rotate(150deg) brightness(1.05)",
-    "Gruen":      "saturate(1.45) hue-rotate(95deg)",
-    "Graustufen": "grayscale(1) contrast(1.2)",
-    "Neon":       "saturate(2.6) contrast(1.2) brightness(1.1)",
-    "Bernstein":  "sepia(.7) saturate(1.8) hue-rotate(-15deg)",
-    "Violett":    "saturate(1.6) hue-rotate(-60deg)",
-    "Blau":       "saturate(1.5) hue-rotate(190deg)"
-  };
-
-  /* v4.6: die Wasserfall-Paletten (DNX + MultiSDR + Original-Themes) auch im
-     Spektrum - als echter Farbverlauf hinter dem Spektrum. */
-  function palStops(id){
-    var i, out = [];
-    var wfTab = null;
-    try{ wfTab = (typeof window.dnxPalDaten === "function") ? window.dnxPalDaten().wf : null; }catch(e0){ wfTab = null; }
-    if(wfTab && wfTab[id]){
-      var hex = wfTab[id];
-      for(i = 0; i < hex.length; i++){
-        out.push([i / Math.max(1, hex.length - 1),
-                  [(hex[i] >> 16) & 255, (hex[i] >> 8) & 255, hex[i] & 255]]);
-      }
-      return out;
-    }
-    /* v6.16: echte Empfaenger-Paletten direkt ablesen - sonst bleiben
-       Farbverlauf, Farbstreifen und 3D-Hintergrund fuer diese Eintraege leer */
-    try{
-      var ut = (window.UI && UI.wfThemes) ? UI.wfThemes[String(id)] : null;
-      if(ut && ut.length){
-        var ou = [];
-        for(i = 0; i < ut.length; i++){
-          ou.push([i / Math.max(1, ut.length - 1),
-                   [(ut[i] >> 16) & 255, (ut[i] >> 8) & 255, ut[i] & 255]]);
-        }
-        return ou;
-      }
-    }catch(eU){}
-    var e = null;
-    var rohId = String(id).replace(/^m188_/, "");
-    try{ e = (window.dnxMsdrParse ? window.dnxMsdrParse() : {})[rohId]; }catch(e1){ e = null; }
-    return e ? e.stops : null;
-  }
-  function palGradient(id){
-    var st = palStops(id);
-    if(!st || !st.length){ return ""; }
-    var teile = [], i, c;
-    for(i = 0; i < st.length; i++){
-      c = st[i][1];
-      teile.push("rgb(" + c[0] + "," + c[1] + "," + c[2] + ") " + Math.round(st[i][0] * 100) + "%");
-    }
-    return "linear-gradient(to top," + teile.join(",") + ")";
-  }
-  function palListe(){
-    var out = [], i;
-    var d = (typeof window.dnxPalDaten === "function") ? window.dnxPalDaten() : {};
-    var dnx = d.dnx || [], org = d.orig || [], ms = d.msdr || [];
-    for(i = 0; i < dnx.length; i++){ out.push(["palraw:" + dnx[i][0], dnx[i][1], "DNX-Paletten"]); }
-    for(i = 0; i < ms.length; i++){ out.push(["palraw:" + ms[i][0], ms[i][1], "MultiSDR"]); }
-    for(i = 0; i < org.length; i++){ out.push(["palraw:" + org[i][0], org[i][1], "OpenWebRX"]); }
-    return out;
-  }
-  var HG_FARBEN = [
-    ["Standard", "Standard"],
-    ["#000000", "Schwarz"],
-    ["#101820", "Anthrazit"],
-    ["#03121f", "Dunkelblau"],
-    ["#04140c", "Dunkelgruen"],
-    ["#150320", "Dunkelviolett"],
-    ["#1a0505", "Dunkelrot"],
-    ["#141005", "Dunkelbraun"]
-  ];
-  function hgAuswahl(){
-    var h = '<select class="hg" data-k="hg">';
-    h += '<optgroup label="Farben (' + HG_FARBEN.length + ')">';
-    for(var i = 0; i < HG_FARBEN.length; i++){
-      h += '<option value="' + HG_FARBEN[i][0] + '"' + (ST.hg === HG_FARBEN[i][0] ? " selected" : "") + '>'
-         + HG_FARBEN[i][1] + "</option>";
-    }
-    h += "</optgroup>";
-    var gruppen = {}, reihen = [];
-    palListe().forEach(function(e){
-      if(!gruppen[e[2]]){ gruppen[e[2]] = []; reihen.push(e[2]); }
-      gruppen[e[2]].push(e);
-    });
-    reihen.forEach(function(g){
-      h += '<optgroup label="' + g + ' (' + gruppen[g].length + ')">';
-      gruppen[g].forEach(function(e){
-        h += '<option value="' + e[0] + '"' + (ST.hg === e[0] ? " selected" : "") + '>' + e[1] + "</option>";
-      });
-      h += "</optgroup>";
-    });
-    return h + "</select>";
-  }
-  function palName(v){
-    var sv = String(v);
-    if(PALETTEN[sv]){ return sv; }
-    var l = palListe(), i;
-    for(i = 0; i < l.length; i++){ if(l[i][0] === sv){ return l[i][1]; } }
-    return sv;
-  }
-  function palAuswahl(){
-    var h = '<select class="pal" data-k="pal">';
-    h += '<optgroup label="Filter-Paletten (' + Object.keys(PALETTEN).length + ')">';
-    for(var k in PALETTEN){
-      h += '<option value="' + k + '"' + (ST.pal === k ? " selected" : "") + '>' + k + '</option>';
-    }
-    h += '</optgroup>';
-    var gruppen = {}, reihen = [];
-    palListe().forEach(function(e){
-      if(!gruppen[e[2]]){ gruppen[e[2]] = []; reihen.push(e[2]); }
-      gruppen[e[2]].push(e);
-    });
-    reihen.forEach(function(g){
-      h += '<optgroup label="' + g + ' (' + gruppen[g].length + ')">';
-      gruppen[g].forEach(function(e){
-        h += '<option value="' + e[0] + '"' + (ST.pal === e[0] ? " selected" : "") + '>' + e[1] + '</option>';
-      });
-      h += '</optgroup>';
-    });
-    return h + '</select>';
-  }
-
-  var ST = lesen();
-
-  function lesen(){
-    var o = {};
-    try{ o = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; }catch(e){ o = {}; }
-    var r = {};
-    for(var k in STD){ r[k] = (typeof o[k] === typeof STD[k]) ? o[k] : STD[k]; }
-    if(!PALETTEN[String(r.pal)] && String(r.pal).indexOf("palraw:") !== 0){ r.pal = "Original"; }
-    return r;
-  }
-  function speichern(){ try{ localStorage.setItem(KEY, JSON.stringify(ST)); }catch(e){} }
-
-  /* v5.5: Nur noch das Spektrum - nicht der ganze Signalblock.
-     Gesucht wird die Leinwand, die OBERHALB der Frequenzskala beginnt; nur
-     diese bekommt Filter und Farbverlauf, und der Verlauf reicht genau bis
-     zur Oberkante der Skala. Wasserfall, 3D-Ansicht und Bandplan bleiben
-     unberuehrt. */
-  function signalLeinwaende(){
-    var treffer = [];
-    var boxen = document.querySelectorAll(
-      "#webrx-canvas-container, #openwebrx-canvas-container, " +
-      "#openwebrx-spectrum-container, #openwebrx-frequency-container, " +
-      "#openwebrx-waterfall-container, #openwebrx-bandplan-container");
-    var aus = ["dnx3d-wrap", "eq-panel-body", "dnx-fm-live-sec", "dnx-fm-analyser", "dnx-styler", "dnx-spec-bar"];
-    function gesperrt(el){
-      var n = el;
-      while(n && n !== document.body){
-        var id = n.id || "", cls = String(n.className || "");
-        for(var i = 0; i < aus.length; i++){
-          if(id.indexOf(aus[i]) === 0 || cls.indexOf(aus[i]) === 0){ return true; }
-        }
-        n = n.parentElement;
-      }
-      return false;
-    }
-    for(var bi = 0; bi < boxen.length; bi++){
-      var cs = boxen[bi].querySelectorAll("canvas");
-      for(var ci = 0; ci < cs.length; ci++){
-        var r = cs[ci].getBoundingClientRect();
-        if(r.width < 40 || r.height < 8){ continue; }
-        if(/openwebrx-(scale|bandplan)-canvas/.test(cs[ci].id || "")){ continue; }
-        if(treffer.some(function(t){ return t.el === cs[ci]; })){ continue; }
-        if(gesperrt(cs[ci])){ continue; }
-        treffer.push({ el: cs[ci], r: r });
-      }
-    }
-    return treffer;
-  }
-
-  /* v5.6: Nur das Spektrum. Statt die Leinwand zu faerben (die oft auch den
-     Wasserfall enthaelt) liegt ein Streifen genau ueber dem Spektrum und
-     filtert per backdrop-filter ausschliesslich das, was unter ihm liegt:
-     von der Spektrum-Oberkante bis zur Oberkante der Frequenzskala. */
-  function spekStreifen(){
-    /* Stabiler Anker: die Frequenzskala. Das Spektrum liegt direkt darueber. */
-    var freq = document.getElementById("openwebrx-frequency-container");
-    if(!freq){ return null; }
-    var rf = freq.getBoundingClientRect();
-    if(rf.width < 40){ return null; }
-    var h = 0;
-    var sc = document.getElementById("openwebrx-spectrum-canvas");
-    if(sc){ var r1 = sc.getBoundingClientRect(); if(r1.height > 8){ h = r1.height; } }
-    if(!h){
-      var scon = document.getElementById("openwebrx-spectrum-container");
-      if(scon){ var r2 = scon.getBoundingClientRect(); if(r2.height > 8){ h = r2.height; } }
-    }
-    if(!h){ h = (ST.hoehe > 0) ? ST.hoehe : 60; }
-    if(h > 260){ h = 260; }
-    return { x1: rf.left, y1: rf.top - h, x2: rf.right, y2: rf.top };
-  }
-
-  function ebene(id, z){
-    var e = document.getElementById(id);
-    if(!e){
-      e = document.createElement("div");
-      e.id = id;
-      e.style.position = "fixed";
-      e.style.pointerEvents = "none";
-      e.style.zIndex = String(z);
-      e.style.borderRadius = "2px";
-      document.body.appendChild(e);
-    }
-    return e;
-  }
-
-  /* v5.7: Die Palette faerbt jetzt die Spektrum-Zeichnung SELBST ein -
-     ueber denselben Haken, den das Plugin schon fuer die FFT-Farbe nutzt
-     (spectrum.ctx.fillStyle). Dadurch aendert sich ausschliesslich die
-     Spektrumkurve; Wasserfall, 3D-Ansicht, Bandplan und Beschriftungen
-     bleiben unberuehrt. Der fruehere Farbstreifen entfaellt. */
-  var SPEC_FFT_ROH = "rgba(255,255,255,0.4)";
-  var FILTER_RGB = {
-    "Feuer":      [255, 140, 40],
-    "Eis":        [120, 215, 255],
-    "Gruen":      [90, 235, 140],
-    "Graustufen": [230, 230, 230],
-    "Neon":       [80, 255, 225],
-    "Bernstein":  [255, 196, 80],
-    "Violett":    [205, 140, 255],
-    "Blau":       [120, 190, 255]
-  };
-
-  function rgb2hsl(r, g, b){
-    r /= 255; g /= 255; b /= 255;
-    var mx = Math.max(r, g, b), mn = Math.min(r, g, b), h = 0, sat = 0, l = (mx + mn) / 2;
-    if(mx !== mn){
-      var d = mx - mn;
-      sat = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
-      if(mx === r){ h = (g - b) / d + (g < b ? 6 : 0); }
-      else if(mx === g){ h = (b - r) / d + 2; }
-      else { h = (r - g) / d + 4; }
-      h /= 6;
-    }
-    return [h, sat, l];
-  }
-  function hsl2rgb(h, sat, l){
-    h = ((h % 1) + 1) % 1;
-    if(sat === 0){ var v = Math.round(l * 255); return [v, v, v]; }
-    var q = l < 0.5 ? l * (1 + sat) : l + sat - l * sat;
-    var p2 = 2 * l - q;
-    var f = function(t){
-      if(t < 0){ t += 1; } if(t > 1){ t -= 1; }
-      if(t < 1 / 6){ return p2 + (q - p2) * 6 * t; }
-      if(t < 1 / 2){ return q; }
-      if(t < 2 / 3){ return p2 + (q - p2) * (2 / 3 - t) * 6; }
-      return p2;
-    };
-    return [Math.round(f(h + 1 / 3) * 255), Math.round(f(h) * 255), Math.round(f(h - 1 / 3) * 255)];
-  }
-  function farbeFein(rgb){
-    var h = rgb2hsl(rgb[0], rgb[1], rgb[2]);
-    h[0] += (ST.hue || 0) / 360;
-    h[1] = Math.max(0, Math.min(1, h[1] * ((ST.saett === 100 ? 100 : ST.saett) / 100)));
-    h[2] = Math.max(0.05, Math.min(1, h[2] * ((ST.hell === 100 ? 100 : ST.hell) / 100)));
-    return hsl2rgb(h[0], h[1], h[2]);
-  }
-  function specZiel(c){
-    /* Farbe/Verlauf fuer die Spektrumzeichnung; null = unveraendert lassen */
-    if(window.__dnxPalUeberzug){ return null; }   /* malt selbst - nur einmal faerben */
-    var id = String(ST.pal);
-    if(!id || id === "Original"){ return null; }
-    if(id.indexOf("palraw:") === 0){
-      var st = palStops(id.slice(7));
-      if(!st || !st.length || !c || typeof c.createLinearGradient !== "function"){ return null; }
-      var hh = (c.canvas && c.canvas.height) ? c.canvas.height : 100;
-      var gr = c.createLinearGradient(0, 0, 0, hh);
-      var i, cc;
-      for(i = 0; i < st.length; i++){
-        cc = farbeFein(st[i][1]);
-        gr.addColorStop(Math.min(1, Math.max(0, 1 - st[i][0])), "rgb(" + cc[0] + "," + cc[1] + "," + cc[2] + ")");
-      }
-      return gr;
-    }
-    var e = FILTER_RGB[id];
-    if(!e){ return null; }
-    var f = farbeFein(e);
-    var a = (ST.deck === 100) ? 0.8 : Math.max(0.15, (ST.deck / 100) * 0.8);
-    return "rgba(" + f[0] + "," + f[1] + "," + f[2] + "," + a + ")";
-  }
-
-  /* v6.19: Der Empfaenger setzt die Fuellung der Spektrumzeichnung genau EIN
-     Mal - beim Anlegen des Kontextes. Wer da nicht zufaellig gerade zuhoert,
-     sieht die neue Farbe nie ("Palette geht nicht"). Deshalb faerbt der Styler
-     die fertige Zeichnung jetzt selbst: source-atop ueber die gemalten Punkte,
-     also genau dort, wo Signal steht - Hintergrund, Skala, Bandplan und
-     Wasserfall bleiben unberruehrt. */
-  function spekStoppen(){
-    var id = String(ST.pal), i, out = [];
-    if(!id || id === "Original"){ return null; }
-    if(id.indexOf("palraw:") === 0){
-      var ro = null;
-      try{ ro = palStops(id.slice(7)); }catch(e){ ro = null; }
-      if(ro && ro.length){ return ro; }
-      return null;
-    }
-    var css = "";
-    try{ if(typeof window.__dnxStylerFilterVerlauf === "function"){ css = String(window.__dnxStylerFilterVerlauf(id)); } }catch(e2){ css = ""; }
-    var hex = css.match(/#[0-9a-fA-F]{6}/g);
-    if(hex && hex.length > 1){
-      for(i = 0; i < hex.length; i++){
-        out.push([i / (hex.length - 1),
-                  [parseInt(hex[i].substr(1,2),16), parseInt(hex[i].substr(3,2),16), parseInt(hex[i].substr(5,2),16)]]);
-      }
-      return out;
-    }
-    var e3 = FILTER_RGB[id];
-    if(!e3){ return null; }
-    var f = farbeFein(e3);
-    return [[0, [0,0,0]], [1, f]];
-  }
-  function spekUeberzug(sp){
-    try{
-      sp = sp || (window.spectrum && window.spectrum.el ? window.spectrum : null);
-      if(!sp || !sp.el){ return 0; }
-      var el = sp.el, hh = el.height, bb = el.width;
-      if(!hh || hh < 3 || !bb || bb < 3){ return 0; }
-      var c = sp.ctx || el.getContext("2d");
-      if(!c || typeof c.createLinearGradient !== "function"){ return 0; }
-      var st = spekStoppen();
-      if(!st){ return 0; }
-      var de = (ST.deck === 100 || !ST.deck) ? 1 : Math.max(0.25, Math.min(1, ST.deck / 100));
-      var gr = c.createLinearGradient(0, hh, 0, 0);
-      for(var i = 0; i < st.length; i++){
-        var pos = Math.min(1, Math.max(0, Number(st[i][0])));
-        var cc = farbeFein(st[i][1]);
-        gr.addColorStop(pos, "rgba(" + cc[0] + "," + cc[1] + "," + cc[2] + "," + (0.92 * de).toFixed(3) + ")");
-      }
-      c.save();
-      try{ c.globalCompositeOperation = "source-atop"; }catch(e4){}
-      try{ c.fillStyle = gr; }catch(e5){}
-      c.fillRect(0, 0, bb, hh);
-      c.restore();   /* stellt Fuellung und Mischart der Zeichnung wieder her */
-      window.__dnxPalGemalt = (window.__dnxPalGemalt || 0) + 1;
-      return 1;
-    }catch(e){ return 0; }
-  }
-  function spekMalHaken(){
-    try{
-      var sp = window.spectrum;
-      if(!sp || typeof sp.draw !== "function"){ return false; }
-      if(sp.__dnxPalDraw){ return true; }
-      var alt = sp.draw;
-      var w = function(){
-        var r = alt.apply(sp, arguments);
-        try{ spekUeberzug(sp); }catch(e){}
-        return r;
-      };
-      sp.__dnxPalDrawAlt = alt;
-      sp.draw = w;
-      sp.__dnxPalDraw = 1;
-      window.__dnxPalUeberzug = 1;
-      return true;
-    }catch(e2){ return false; }
-  }
-  function spekMalWeg(){
-    try{
-      var sp = window.spectrum;
-      if(!sp || !sp.__dnxPalDraw || !sp.__dnxPalDrawAlt){ window.__dnxPalUeberzug = 0; return false; }
-      sp.draw = sp.__dnxPalDrawAlt;
-      sp.__dnxPalDraw = 0; sp.__dnxPalDrawAlt = null;
-      window.__dnxPalUeberzug = 0;
-      try{ sp.draw(); }catch(e){}
-      return true;
-    }catch(e2){ window.__dnxPalUeberzug = 0; return false; }
-  }
-  try{ window.__dnxPalUeberzugMalen = function(){ return spekUeberzug(); }; }catch(eX){}
-
-  var specCtx = null, specSetzer = null;
-
-  function specHook(){
-    var c = null;
-    try{ c = (window.spectrum && window.spectrum.ctx) ? window.spectrum.ctx : null; }catch(e){ c = null; }
-    if(!c){ return false; }
-    if(specCtx === c && specSetzer && c.__dnxPalHook === specSetzer){ return true; }
-    var d = null;
-    try{ d = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(c), "fillStyle"); }catch(e2){ d = null; }
-    if(!d || !d.set){ return false; }
-    /* vorhandenen Haken des Plugins (FFT-Palette) NICHT ersetzen, sondern
-       davorhaengen - sonst waere dessen Farbgebung abgeschaltet */
-    var eigen = Object.getOwnPropertyDescriptor(c, "fillStyle");
-    var setterVor = (eigen && eigen.set && !eigen.set.__dnxPalHook) ? eigen.set : null;
-
-    var setzen = function(v){
-      c.__dnxFillRoh = v;
-      if(setterVor){ try{ setterVor.call(c, v); }catch(e3){} }
-      else { try{ d.set.call(c, v); }catch(e4){} }
-      var roh = String(v).replace(/[ \t]/g, "");
-      try{
-        window.__dnxPalRoh = roh.slice(0, 70);
-        window.__dnxPalSieht = (window.__dnxPalSieht || 0) + 1;
-      }catch(e9){}
-      if(roh === SPEC_FFT_ROH){
-        var ziel = null;
-        try{ ziel = specZiel(c); }catch(e5){ ziel = null; }
-        if(ziel){ try{ d.set.call(c, ziel); window.__dnxPalTreff = (window.__dnxPalTreff || 0) + 1; }catch(e6){} }
-      }
-    };
-    setzen.__dnxPalHook = 1;
-    try{
-      Object.defineProperty(c, "fillStyle", {
-        configurable: true,
-        get: function(){ return c.__dnxFillRoh; },
-        set: function(v){ setzen(v); }
-      });
-      c.__dnxPalHook = setzen;
-      specCtx = c;
-      specSetzer = setzen;
-    }catch(e7){ return false; }
-    return true;
-  }
-
-  function specCanvas(){
-    var c = null;
-    try{ c = (window.spectrum && window.spectrum.el) ? window.spectrum.el : null; }catch(e){ c = null; }
-    if(!c){ c = document.getElementById("openwebrx-spectrum-canvas"); }
-    return c;
-  }
-  function hgAnwenden(){
-    var c = specCanvas();
-    var hg = String(ST.hg || "Standard");
-    var ziele = [];
-    if(c){ ziele.push(c); }
-    var box = document.getElementById("openwebrx-spectrum-container");
-    if(box){ ziele.push(box); }
-    for(var i = 0; i < ziele.length; i++){
-      var z = ziele[i];
-      if(hg === "Standard"){
-        z.style.backgroundImage = "";
-        z.style.backgroundColor = "";
-        continue;
-      }
-      if(hg.indexOf("palraw:") === 0){
-        var g2 = palGradient(hg.slice(7));
-        if(g2){
-          z.style.backgroundColor = "#000000";
-          z.style.backgroundImage = g2;
-        }
-      } else {
-        z.style.backgroundImage = "";
-        z.style.backgroundColor = hg;
-      }
-    }
-    /* v6.16: Das Spektrum-Canvas ist bei diesem Empfaenger 0 px hoch - das
-       Spektrum liegt in der Leiste mit der Skala. Diese Leiste wird jetzt
-       ebenso gefaerbt, sonst war die Wahl im Feld "Spektrum-Hintergrund"
-       unsichtbar (der Eindruck war "der Hintergrund geht nicht"). */
-    var leiste = document.getElementById("openwebrx-frequency-container");
-    if(leiste){
-      try{
-        if(hg === "Standard"){
-          leiste.style.removeProperty("background");
-          leiste.style.removeProperty("background-color");
-          leiste.style.removeProperty("background-image");
-        } else if(hg.indexOf("palraw:") === 0){
-          var g3 = palGradient(hg.slice(7));
-          leiste.style.setProperty("background-color", g3 ? "#000000" : "#000000", "important");
-          if(g3){ leiste.style.setProperty("background-image", g3, "important"); }
-          else { leiste.style.removeProperty("background-image"); }
-        } else {
-          leiste.style.setProperty("background-color", hg, "important");
-          leiste.style.setProperty("background-image", "none", "important");
-        }
-      }catch(eL){}
-    }
-  }
-
-  /* v5.8: Selbstheilung - steht im Auswahlfeld etwas anderes als im Zustand
-     (z.B. weil ein anderer Listener das change-Ereignis geschluckt hat),
-     wird die Auswahl trotzdem uebernommen. */
-  function abgleich(){
-    if(window.__dnxSpecSperre && (Date.now() - window.__dnxSpecSperre) < 2000){ return; }
-    var bar = document.getElementById("dnx-spec-bar");
-    if(!bar){ return; }
-    var felder = bar.querySelectorAll("select");
-    for(var i = 0; i < felder.length; i++){
-      var k = felder[i].getAttribute("data-k");
-      if(!k || !felder[i].value){ continue; }
-      var v = (k === "pal" || k === "hg") ? felder[i].value : parseFloat(felder[i].value);
-      if(String(ST[k]) !== String(v)){ ST[k] = v; speichern(); }
-    }
-  }
-
-  function anwenden(){
-    var roh = String(ST.pal).indexOf("palraw:") === 0;
-
-    /* alte Ebenen/Faerbungen der Vorfassungen abschalten */
-    var fqAlt = document.getElementById("openwebrx-frequency-container");
-    if(fqAlt){
-      var ebAlt = fqAlt.querySelector("#dnx-spec-pal-bg");
-      if(ebAlt){ ebAlt.parentNode.removeChild(ebAlt); }
-    }
-    var gbAlt = document.getElementById("dnx-spec-pal-bg");
-    if(gbAlt){ gbAlt.style.display = "none"; }
-    var fbAlt = document.getElementById("dnx-spec-filter-bg");
-    if(fbAlt){ fbAlt.style.display = "none"; }
-    /* v5.8: KEINE fremden Leinwaende mehr anfassen - dadurch war der
-       3D-Wasserfall blass (sein Farbfilter wurde mitgeloescht). */
-
-    /* Hintergrund des Spektrums */
-    hgAnwenden();
-
-    /* Haken in die Spektrumzeichnung setzen */
-    specHook();
-
-    /* v6.7: Zeichnung sofort neu anstossen, damit die neue Farbe SICHTBAR
-       wird - auch wenn gerade keine neuen FFT-Daten kommen. Vorher blieb
-       das Bild stehen, bis zufaellig neu gezeichnet wurde. */
-    /* v6.18: OpenWebRX setzt die Fuellung nur ein einziges Mal - beim Anlegen
-       des Kontextes. War unser Haken in diesem Moment noch nicht drauf, bleibt
-       die Zeile Weiss und wirkt "farblos" (genau der Nutzerbefund). Also die
-       Roheinstellung selbst durch den Haken schicken: der setter faerbt sie auf
-       die gewaehlte Palette um. */
-    try{
-      if(specCtx){ specCtx.fillStyle = SPEC_FFT_ROH; }
-      else if(specCtx && specCtx.__dnxFillRoh){ specCtx.fillStyle = specCtx.__dnxFillRoh; }
-    }catch(e){}
-    try{
-      if(window.spectrum && typeof window.spectrum.draw === "function"){ window.spectrum.draw(); }
-    }catch(eZ){}
-
-    if(ST.hoehe > 0){
-      try{
-        if(window.dnxStyler && typeof window.dnxStyler.fftHoehe === "function"){
-          window.__dnxSpecSetztHoehe = true;
-          try{ window.dnxStyler.fftHoehe(ST.hoehe); } finally { window.__dnxSpecSetztHoehe = false; }
-        }
-      }catch(e){ window.__dnxSpecSetztHoehe = false; }
-    }
-    /* v6.18: Palette gewaehlt, aber die Zeile ist ausgeblendet -> einblenden.
-       "Original" = ohne Eingriff; dann die von uns geoeffnete Zeile zurueck. */
-    try{
-      if(String(ST.pal) === "Original" || String(ST.pal) === ""){ spekMalWeg(); spekZeileZu(); }
-      else {
-        spekZeileEin();
-        spekMalHaken();
-        /* Zeichnung anstossen, damit die neue Farbe SOFORT im Bild steht */
-        if(spekZeSichtbar()){ try{ window.spectrum.draw(); }catch(eW){} }
-      }
-    }catch(eV){}
-  }
-
-  /* v6.17: Bei diesem Empfaenger ist die Spektrum-Zeile im Startbild 0 px hoch
-     (ausgeblendet). Der Farb-Haken braucht aber die Zeichnung - er konnte sich
-     nie anmelden, die Palette wirkte "unsichtbar". Diese Wache setzt den Haken
-     neu, sobald die Zeile wieder da ist, und faerbt das Bild sofort. */
-  function spekZeSichtbar(){
-    try{
-      var e = (window.spectrum && window.spectrum.el) ? window.spectrum.el : document.getElementById("openwebrx-spectrum-canvas");
-      if(!e){ return false; }
-      var hh = e.height || 0;
-      try{ hh = Math.max(hh, Math.round(e.getBoundingClientRect().height)); }catch(r2){}
-      return hh > 2;
-    }catch(x){ return false; }
-  }
-  (function(){
-    var letzter = null;
-    setInterval(function(){
-      try{
-        var hat = (window.spectrum && window.spectrum.ctx) ? 1 : 0;
-        var jetzt = (spekZeSichtbar() ? 1 : 0) + "|" + hat;
-        if(jetzt === letzter){ return; }
-        var war = letzter; letzter = jetzt;
-        /* von uns geoeffnet und jetzt zu, ohne dass wir zugemacht haben ->
-           der Nutzer hat die Zeile selbst ausgeblendet: nicht nachdraengeln */
-        if(jetzt.charAt(0) === "0" && war && String(war).charAt(0) === "1"
-           && window.__dnxPalZeile.geoeffnet && !window.__dnxPalZeile.eigen){
-          window.__dnxPalZeile.geoeffnet = 0;
-          window.__dnxPalZeile.ruhig = 1;
-        }
-        if(jetzt.charAt(0) !== "1"){ return; }        /* Zeile nicht zu sehen */
-        if(hat){ if(specHook()){ anwenden(); } else { anwenden(); } }
-        else if(war === null){ anwenden(); }
-        /*Palette neu justiert (Regler Ton/Saettigung/Deckkraft) -> uebermalen */
-        if(hat && String(ST.pal) !== "Original" && ST.pal){ try{ if(window.spectrum){ window.spectrum.draw(); } }catch(e2){} }
-        /* Klartext unter dem Feld mitziehen: der Hinweis "Zeile ausgeblendet"
-           muss weg, sobald die Zeile wieder zu sehen ist */
-        for(var w = 0; w < 4; w++){
-          try{
-            (function(dd){ setTimeout(function(){
-              try{ if(window.__dnxStylerFarbSync){ window.__dnxStylerFarbSync(); } }catch(e1){}
-            }, 300 + dd * 900); })(w);
-          }catch(e2){}
-        }
-      }catch(e){}
-    }, 900);
-  })();
-  try{ window.__dnxSpecSichtbar = spekZeSichtbar; }catch(eS){}
-
-  /* v6.18: Die Palette soll zeigen, was gewaehlt ist - sofort und am sichtbaren
-     Bild. Bei diesem Empfaenger ist die Spektrum-Zeile im Startbild ausgeblendet
-     (0 px), deshalb tat sich beim Umschalten scheinbar "nichts". Die Auswahl
-     blendet die Zeile jetzt selbst ein und klappt sie beim Zuruecksetzen auf
-     "Original" wieder zu - sofern wir sie geoeffnet haben. Schaltet der Nutzer
-     sie von Hand aus, drhaengt die Palette nicht nach. */
-  /* Nach F5 darf eine gespeicherte Palette den zuletzt veroeffentlichten,
-     noch persoenlich ausgeschalteten Zustand nicht eigenmaechtig oeffnen.
-     Eine seitdem persoenlich wieder geoeffnete Ansicht bleibt offen. */
-  var stdSpektrumAus = 0;
-  try{
-    var gemerkterStd = JSON.parse(localStorage.getItem("dnx_styler_std_signatur_v1") || "null");
-    if(localStorage.getItem("ui_spectrum") === "false" && gemerkterStd && gemerkterStd[1] && gemerkterStd[1].fft_an === 0){ stdSpektrumAus = 1; }
-  }catch(ePF3){}
-  window.__dnxPalZeile = {geoeffnet:0, ruhig:stdSpektrumAus, beim:0};
-  function spekZeileOeffnen(an){
-    var cb = null, i;
-    try{ cb = document.getElementById("dnx-an-panel-fft"); }catch(e0){ cb = null; }
-    if(cb){
-      if(!!cb.checked === !!an){ return 1; }
-      cb.checked = !!an;
-      /* eigenes Umschalten nicht als "vom Nutzer von Hand zugemacht" buchen */
-      window.__dnxPalZeile.eigen = 1;
-      try{ cb.dispatchEvent(new Event("change", {bubbles:true})); }catch(e1){}
-      setTimeout(function(){ try{ window.__dnxPalZeile.eigen = 0; }catch(e4){} }, 250);
-      return 2;
-    }
-    try{
-      if(window.UI && typeof window.UI.toggleSpectrum === "function"){ window.UI.toggleSpectrum(!!an); return 2; }
-    }catch(e2){}
-    try{
-      var k = document.querySelector(".openwebrx-spectrum-container");
-      if(k && k.classList){ k.classList.toggle("expanded", !!an); }
-      if(window.spectrum && typeof window.spectrum.toggle === "function"){ window.spectrum.toggle(!!an); }
-      return 1;
-    }catch(e3){ return 0; }
-  }
-  function spekZeileEin(){
-    try{
-      if(spekZeSichtbar()){ return 1; }                      /* Zeile ist schon da */
-      if(window.__dnxPalZeile.ruhig){ return 0; }             /* vom Nutzer von Hand zugemacht */
-      if(window.__dnxPalZeile.beim){ return 2; }
-      window.__dnxPalZeile.beim = 1;
-      spekZeileOeffnen(true);
-      window.__dnxPalZeile.geoeffnet = 1;
-      /* Haken sitzt meist erst, nachdem die Leinwand groesse bekommen hat */
-      for(var v = 0; v < 6; v++){
-        try{
-          (function(dd){ setTimeout(function(){
-            try{
-              if(spekZeSichtbar()){ if(specHook()){ anwenden(); } else { anwenden(); }
-                window.__dnxPalZeile.beim = 0; }   /* Nachschwuppdirekt freigeben: die naechste Wahl soll nicht warten */
-              if(dd === 5){ window.__dnxPalZeile.beim = 0; }
-              if(window.__dnxStylerFarbSync){ window.__dnxStylerFarbSync(); }
-            }catch(e4){}
-          }, 260 + dd * 420); })(v);
-        }catch(e5){}
-      }
-      return 2;
-    }catch(e){ return 0; }
-  }
-  function spekZeileZu(){
-    try{
-      if(!window.__dnxPalZeile.geoeffnet){ return 0; }
-      window.__dnxPalZeile.geoeffnet = 0;
-      spekZeileOeffnen(false);
-      if(window.__dnxStylerFarbSync){ window.__dnxStylerFarbSync(); }
-    }catch(e){}
-    return 1;
-  }
-  try{
-    document.addEventListener("change", function(ev){
-      try{
-        var z = ev && ev.target;
-        if(!z || z.id !== "dnx-an-panel-fft"){ return; }
-        if(window.__dnxPalZeile.eigen){ return; }
-        if(z.checked){ window.__dnxPalZeile.ruhig = 0; }
-        else { window.__dnxPalZeile.ruhig = 1; window.__dnxPalZeile.geoeffnet = 0; }
-      }catch(e){}
-    }, true);
-  }catch(eP){}
-  try{ window.__dnxPalZeileEin = spekZeileEin; window.__dnxPalZeileZu = spekZeileZu; }catch(eQ){}
-
-  function css(){
-    if(document.getElementById("dnx-spec-css")){ return; }
-    var st = document.createElement("style");
-    st.id = "dnx-spec-css";
-    st.textContent = ""
-      + "#dnx-spec-knopf{position:fixed;z-index:2147482600;width:24px;height:20px;padding:0;"
-      + "border-radius:3px;border:1px solid #666;background:#333;color:#eee;"
-      + "font-family:'DejaVu Sans',Verdana,Geneva,sans-serif;font-size:11pt;line-height:1;"
-      + "cursor:pointer;white-space:nowrap;text-align:center;}"
-      + "#dnx-spec-knopf:hover{background:#b68b19;color:#fff;border-color:#ffcf40;}"
-      /* 1:1 die Farben der 3D-Wasserfall-Leiste (#dnx3d-toolbar) */
-      + "#dnx-spec-bar{position:fixed;z-index:2147482700;display:flex;align-items:center;gap:3px;"
-      + "padding:3px 6px;box-sizing:border-box;background:rgba(0,0,0,.55);"
-      + "border:1px solid rgba(255,255,255,.25);border-radius:6px;color:#eee;"
-      + "font-family:'DejaVu Sans',Verdana,Geneva,sans-serif;font-size:10pt;"
-      + "opacity:.35;transition:opacity .25s;cursor:default;"
-      + "user-select:none;white-space:nowrap;}"
-      + "#dnx-spec-bar:hover{opacity:1;}"
-      + "#dnx-spec-bar .lab{font-weight:bold;color:#ffcf40;margin-right:2px;}"
-      + "#dnx-spec-bar .grp{display:flex;align-items:center;gap:3px;}"
-      + "#dnx-spec-bar .grp+.grp{padding-left:3px;border-left:1px solid rgba(255,255,255,.3);"
-      + "margin-left:2px;}"
-      + "#dnx-spec-bar .ttl{color:#eee;}"
-      + "#dnx-spec-bar select{background:#333;color:#eee;border:1px solid #666;border-radius:3px;"
-      + "font-family:inherit;font-size:9pt;height:20px;padding:0 3px;cursor:pointer;max-width:96px;}"
-      + "#dnx-spec-bar button{background:#333;color:#eee;border:1px solid #666;border-radius:3px;"
-      + "font-family:inherit;font-size:9pt;height:20px;padding:0 5px;cursor:pointer;line-height:1;}"
-      + "#dnx-spec-bar button:hover{background:#b68b19;color:#fff;border-color:#ffcf40;}"
-      + "#dnx-spec-bar select:hover{border-color:#ffcf40;}"
-      + "#dnx-spec-bar select.pal{display:inline-block;max-width:210px;}"
-      + "#dnx-spec-bar select.hg{display:inline-block;max-width:150px;}"
-      + "#dnx-spec-bar .palfeld{display:flex;align-items:center;gap:4px;height:20px;padding:0 6px;"
-      + "background:#333;color:#eee;border:1px solid #666;border-radius:3px;font-size:9pt;"
-      + "cursor:pointer;min-width:104px;max-width:190px;}"
-      + "#dnx-spec-bar .palfeld:hover{border-color:#ffcf40;color:#fff;}"
-      + "#dnx-spec-bar .palfeld .paltxt{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}"
-      + "#dnx-spec-bar .palfeld .palpfeil{color:#ffcf40;}"
-      + "#dnx-pal-panel{position:fixed;z-index:2147482800;background:rgba(8,20,14,.97);"
-      + "border:1px solid #1f8f52;border-radius:5px;color:#eafff2;font-family:'DejaVu Sans',Verdana,sans-serif;"
-      + "font-size:9pt;max-height:64vh;overflow:auto;padding:4px;box-shadow:0 6px 18px rgba(0,0,0,.6);min-width:210px;}"
-      + "#dnx-pal-panel .grp-t{color:#ffcf40;font-weight:bold;padding:3px 4px 2px;border-bottom:1px solid rgba(31,143,82,.5);"
-      + "margin:3px 0 2px;position:sticky;top:0;background:rgba(8,20,14,.97);}"
-      + "#dnx-pal-panel .it{padding:2px 6px;border-radius:3px;cursor:pointer;white-space:nowrap;display:flex;"
-      + "align-items:center;justify-content:space-between;gap:8px;}"
-      + "#dnx-pal-panel .it:hover{background:#1f8f52;color:#f2fff8;}"
-      + "#dnx-pal-panel .it.an{background:rgba(31,143,82,.45);color:#fff;font-weight:bold;}"
-      + "#dnx-pal-panel .sw{width:34px;height:10px;border:1px solid rgba(255,255,255,.35);border-radius:2px;flex:0 0 auto;}"
-      + "#dnx-spec-bar .std{background:#b68b19;color:#fff;border-color:#ffcf40;}"
-      + "#dnx-spec-bar .std:hover{background:#ffcf40;color:#111;}";
-    (document.head || document.documentElement).appendChild(st);
-  }
-
-  /* v6.0: von aussen setzen (Farben-Block im Styler und Standard fuer alle) */
-  window.__dnxSpecSet = function(o){
-    if(!o || typeof o !== "object"){ return null; }
-    var geaendert = false;
-    /* "Original" hat als Filter einen leeren Text - darum ueber die Schluessel
-       pruefen und nicht ueber den Wert. */
-    if(typeof o.pal === "string" &&
-       (Object.prototype.hasOwnProperty.call(PALETTEN, o.pal) || o.pal.indexOf("palraw:") === 0)){
-      ST.pal = o.pal;
-      geaendert = true;
-    }
-    if(typeof o.hg === "string" && o.hg){ ST.hg = o.hg; geaendert = true; }
-    if(!geaendert){ return { pal: ST.pal, hg: ST.hg }; }
-    /* 2 s Sperre: der Nachzieh-Takt der Spektrum-Leiste darf den gerade
-       gesetzten Wert nicht aus dem (noch nicht nachgezogenen) Feld zurueckholen */
-    try{ window.__dnxSpecSperre = Date.now(); }catch(e0){}
-    speichern();
-    try{ anwenden(); }catch(e1){}
-    try{
-      var b = document.getElementById("dnx-spec-bar");
-      if(b){
-        var fs = b.querySelectorAll("select[data-k]");
-        for(var i = 0; i < fs.length; i++){
-          var k = fs[i].getAttribute("data-k");
-          if(k === "pal" || k === "hg"){ fs[i].value = String(ST[k]); }
-        }
-      }
-    }catch(e2){}
-    return { pal: ST.pal, hg: ST.hg };
-  };
-  window.__dnxSpecLesen = function(){ return { pal: ST.pal, hg: ST.hg }; };
-  /* Die Hoehe gehoert zur roten Linie (fftH), nicht zu zwei konkurrierenden
-     Reglern. Die restlichen Darstellungswerte werden komplett geteilt. */
-  window.__dnxSpecHoeheFreigeben = function(){
-    if(ST.hoehe !== 0){ ST.hoehe = 0; speichern(); }
-    try{ var h = document.querySelector('#dnx-spec-bar select[data-k="hoehe"]'); if(h){ h.value = "0"; } }catch(e){}
-  };
-  window.__dnxSpecVollLesen = function(){
-    return { hell: ST.hell, kont: ST.kont, saett: ST.saett, hue: ST.hue, weich: ST.weich, deck: ST.deck };
-  };
-  window.__dnxSpecVollSet = function(o){
-    if(!o || typeof o !== "object"){ return; }
-    var lim = { hell:[40,200], kont:[40,220], saett:[0,250], hue:[-180,180], weich:[0,6], deck:[20,100] };
-    for(var k in lim){ if(typeof o[k] === "number" && isFinite(o[k])){ ST[k] = Math.max(lim[k][0], Math.min(lim[k][1], o[k])); } }
-    speichern();
-    try{ anwenden(); }catch(e){}
-    try{ var es = document.querySelectorAll('#dnx-spec-bar select[data-k]'); for(var i = 0; i < es.length; i++){ var key = es[i].getAttribute("data-k"); if(key in lim){ es[i].value = String(ST[key]); } } }catch(e2){}
-  };
-  /* v6.8: Palettenverlauf auch ausserhalb dieses Bereichs nutzbar
-     (Farbstreifen im Styler-Block) */
-  try{ window.__dnxPalVerlauf = palGradient; window.__dnxPalStopListe = palStops; }catch(ePV){}
-
-  function auswahl(name, werte, einheit){
-    var o = "";
-    werte.forEach(function(v){
-      o += '<option value="' + v + '"' + (String(ST[name]) === String(v) ? " selected" : "") + ">"
-        + v + (einheit && v !== "Original" ? einheit : "") + "</option>";
-    });
-    return '<select data-k="' + name + '">' + o + "</select>";
-  }
-  function reihe(min, max, step){
-    var a = [];
-    for(var v = min; v <= max; v += step){ a.push(v); }
-    return a;
-  }
-
-  /* v5.2: eigenes Paletten-Menue (kein Browser-Ausklappfeld) - damit kommt
-     jeder Klick sicher an, auch wenn andere DNX-Listener mitreden wollen. */
-  function palPanel(feld){
-    var alt = document.getElementById("dnx-pal-panel");
-    if(alt){ alt.parentNode.removeChild(alt); return; }
-    css();
-    var pane = document.createElement("div");
-    pane.id = "dnx-pal-panel";
-    var h = "";
-    var gruppen = [["Filter-Paletten", []]];
-    for(var k in PALETTEN){ gruppen[0][1].push([k, k]); }
-    var rest = {}, reihen = [];
-    palListe().forEach(function(e){
-      if(!rest[e[2]]){ rest[e[2]] = []; reihen.push(e[2]); }
-      rest[e[2]].push([e[0], e[1]]);
-    });
-    reihen.forEach(function(g){ gruppen.push([g, rest[g]]); });
-    gruppen.forEach(function(g){
-      h += '<div class="grp-t">' + g[0] + " (" + g[1].length + ")</div>";
-      g[1].forEach(function(e){
-        var v = String(e[0]);
-        var sw = "";
-        if(v.indexOf("palraw:") === 0){
-          var gg = palGradient(v.slice(7));
-          if(gg){ sw = '<span class="sw" style="background-image:' + gg + '"></span>'; }
-        }
-        h += '<div class="it' + (String(ST.pal) === v ? " an" : "") + '" data-v="' + v + '">'
-           + "<span>" + e[1] + "</span>" + sw + "</div>";
-      });
-    });
-    pane.innerHTML = h;
-    document.body.appendChild(pane);
-
-    var fr = feld.getBoundingClientRect();
-    var ph = Math.min(window.innerHeight - 20, pane.offsetHeight);
-    var pt = fr.bottom + 4;
-    if(pt + ph > window.innerHeight - 8){ pt = Math.max(8, fr.top - ph - 4); }
-    var pl = Math.min(fr.left, Math.max(8, window.innerWidth - pane.offsetWidth - 8));
-    pane.style.top = Math.round(pt) + "px";
-    pane.style.left = Math.round(Math.max(8, pl)) + "px";
-
-    ["mousedown", "pointerdown", "click"].forEach(function(ev){
-      pane.addEventListener(ev, function(e){ e.stopPropagation(); }, true);
-    });
-    pane.addEventListener("click", function(ev){
-      var it = ev.target.closest ? ev.target.closest(".it") : null;
-      if(!it){ return; }
-      ev.preventDefault();
-      ST.pal = it.getAttribute("data-v");
-      speichern();
-      anwenden();
-      var txt = document.querySelector("#dnx-spec-bar .palfeld .paltxt");
-      if(txt){ txt.textContent = palName(ST.pal); }
-      var hsel = document.querySelector("#dnx-spec-bar select.pal");
-      if(hsel){ hsel.value = ST.pal; }
-      pane.parentNode.removeChild(pane);
-      try{ if(window.dnxStyler && window.dnxStyler.beep){ window.dnxStyler.beep(); } }catch(e){}
-    });
-    setTimeout(function(){
-      document.addEventListener("click", function weg(e){
-        if(pane && pane.parentNode && !pane.contains(e.target) && !feld.contains(e.target)){
-          pane.parentNode.removeChild(pane);
-          document.removeEventListener("click", weg, true);
-        }
-      }, true);
-    }, 30);
-  }
-
-  /* Position der Leiste an den Zahnrad-Knopf haengen */
-  function barPlatz(){
-    var b = document.getElementById("dnx-spec-bar");
-    var kn = document.getElementById("dnx-spec-knopf");
-    if(b && kn){
-      var r = kn.getBoundingClientRect();
-      var bl = r.right - (b.offsetWidth || 620);
-      b.style.left = Math.round(Math.max(6, bl)) + "px";
-      b.style.top = Math.round(Math.max(6, r.top - 28)) + "px";
-    }
-  }
-  /* v4.7: baut die Leiste IMMER neu auf (vorher hat ein resize/scroll sie
-     versehentlich wieder zugemacht - dann war keine Palette mehr waehlbar) */
-  function barBauen(){
-    var alt = document.getElementById("dnx-spec-bar");
-    if(alt && alt.parentNode){ alt.parentNode.removeChild(alt); }
-    {
-      css();
-      var bar = document.createElement("div");
-      bar.id = "dnx-spec-bar";
-      bar.innerHTML =
-          '<span class="lab">SPEKTRUM</span>'
-        + '<span class="grp"><span class="ttl">Palette</span>' + palAuswahl() + "</span>"
-        + '<span class="grp"><span class="ttl">Hintergr</span>' + hgAuswahl() + "</span>"
-        + '<span class="grp"><span class="ttl">Hell</span>' + auswahl("hell", reihe(40, 200, 10), "%") + "</span>"
-        + '<span class="grp"><span class="ttl">Kontr</span>' + auswahl("kont", reihe(40, 220, 10), "%") + "</span>"
-        + '<span class="grp"><span class="ttl">Saett</span>' + auswahl("saett", reihe(0, 250, 10), "%") + "</span>"
-        + '<span class="grp"><span class="ttl">Ton</span>' + auswahl("hue", reihe(-180, 180, 15), "\u00b0") + "</span>"
-        + '<span class="grp"><span class="ttl">Weich</span>' + auswahl("weich", [0, 0.5, 1, 1.5, 2, 3, 4, 6], "px") + "</span>"
-        + '<span class="grp"><span class="ttl">Hoehe</span>' + auswahl("hoehe", reihe(0, 220, 10), "px") + "</span>"
-        + '<span class="grp"><span class="ttl">Deck</span>' + auswahl("deck", reihe(20, 100, 10), "%") + "</span>"
-        + '<span class="grp"><button type="button" class="std gold" title="alles zuruecksetzen">\u21ba</button>'
-        + '<button type="button" class="zu" title="Leiste schliessen">\u00d7</button></span>';
-      document.body.appendChild(bar);
-
-      bar.querySelectorAll("select").forEach(function(sel){
-        var uebernehmen = function(){
-          var k = sel.getAttribute("data-k");
-          if(!k){ return; }
-          ST[k] = (k === "pal" || k === "hg") ? sel.value : parseFloat(sel.value);
-          if(k === "hoehe" && !ST.hoehe){ ST.hoehe = 0; }
-          speichern(); anwenden();
-        };
-        sel.onchange = uebernehmen;
-        sel.oninput = uebernehmen;
-      });
-      /* v5.4: Schutz nur auf den Bedienelementen selbst - Stopper auf der
-         ganzen Leiste haetten die Klicks verschluckt. */
-      var schuetzen = function(el){
-        ["mousedown", "pointerdown", "click"].forEach(function(ev){
-          el.addEventListener(ev, function(e){ e.stopPropagation(); }, false);
-        });
-      };
-      bar.querySelectorAll("select, button").forEach(schuetzen);
-      bar.querySelector(".std").onclick = function(){
-        var o = {};
-        for(var k in STD){ o[k] = STD[k]; }
-        ST = o; speichern(); anwenden();
-        bar.querySelectorAll("select").forEach(function(sel){
-          var k = sel.getAttribute("data-k");
-          sel.value = String(ST[k]);
-        });
-      };
-      bar.querySelector(".zu").onclick = function(){ bar.parentNode.removeChild(bar); };
-    }
-    barPlatz();
-  }
-
-  function knopfPlatz(){
-    var b = document.getElementById("dnx-spec-knopf");
-    if(!b){ return; }
-    var c = document.querySelector("#openwebrx-spectrum-container, .openwebrx-spectrum-container");
-    var r = c ? c.getBoundingClientRect() : null;
-    var w = 0, h = 0, x = 0, y = 0;
-    if(r && r.height > 12 && r.width > 60){ w = r.width; h = r.height; x = r.left; y = r.top; }
-    else {
-      var c2 = document.getElementById("webrx-canvas-background");
-      var r2 = c2 ? c2.getBoundingClientRect() : null;
-      if(r2 && r2.height > 12){ w = r2.width; h = r2.height; x = r2.left; y = r2.top; }
-    }
-    if(!w || !h){ b.style.display = "none"; return; }
-    b.style.display = "block";
-    var bw = b.offsetWidth || 96;
-    b.style.left = Math.round(Math.max(4, x + w - bw - 8)) + "px";
-    b.style.top = Math.round(Math.max(4, y + Math.max(2, (h - 22) / 2))) + "px";
-  }
-
-  function knopf(){
-    if(!document.getElementById("dnx-spec-knopf")){
-      css();
-      var b = document.createElement("button");
-      b.id = "dnx-spec-knopf";
-      b.type = "button";
-      b.textContent = "\u2699";
-      b.title = "Spektrum einstellen: Palette, Helligkeit, Kontrast, Hoehe ...";
-      b.addEventListener("click", function(ev){
-        ev.stopPropagation();
-        var alt = document.getElementById("dnx-spec-bar");
-        if(alt && alt.parentNode){ alt.parentNode.removeChild(alt); }
-        else { barBauen(); }
-      });
-      document.body.appendChild(b);
-    }
-    knopfPlatz();
-    anwenden();
-  }
-
-  function start(){
-    css();
-    knopf();
-    anwenden();
-    setInterval(function(){ try{ abgleich(); knopf(); anwenden(); }catch(e){} }, 900);
-    window.addEventListener("resize", function(){ try{ knopfPlatz(); barPlatz(); }catch(e){} });
-    window.addEventListener("scroll", function(){ try{ knopfPlatz(); }catch(e){} }, true);
-  }
-
-  if(document.readyState === "loading"){
-    document.addEventListener("DOMContentLoaded", function(){ setTimeout(start, 1500); });
-  } else {
-    setTimeout(start, 1500);
-  }
-})();
-/* DNX_SPEC_SETTINGS_END */
-
-  /* ---- v6.0: "Farben & Hintergruende" -----------------------------------
-     Ein Ort fuer alle Paletten: Wasserfall (2D), 3D-Wasserfall und Spektrum
-     samt Hintergruenden sowie die beiden roten Ziehlinien mit Farbe, Dicke
-     und Lage. Alles wirkt sofort; "Standard fuer alle" legt es auf dem
-     Teilen-Dienst ab, damit jeder Besucher so startet. */
-  var FARB_KEY = "dnx.farben.v1";
-  var LIN_FARBE_KEY = "dnx_styler_linie_farbe";
-  var LIN_DICKE_KEY = "dnx_styler_linie_dicke";
-  var FARB_STD = { linieFarbe: "#ff2020", linieDicke: 3 };
-  var s3dLesen = function(){
-    try{ return JSON.parse(localStorage.getItem("dnx_3dtool") || "{}") || {}; }catch(e){ return {}; }
-  };
-
-  function farbHex(v, ersatz){
-    v = String(v || "");
-    return /^#[0-9a-fA-F]{6}$/.test(v) ? v.toLowerCase() : ersatz;
-  }
-  function farbLesen(){
-    var o = {};
-    try{ o = JSON.parse(localStorage.getItem(FARB_KEY) || "{}") || {}; }catch(e){ o = {}; }
-    var f = "", d = NaN;
-    try{ f = localStorage.getItem(LIN_FARBE_KEY) || ""; d = parseInt(localStorage.getItem(LIN_DICKE_KEY) || "", 10); }catch(e2){}
-    o.linieFarbe = farbHex(o.linieFarbe, farbHex(f, FARB_STD.linieFarbe));
-    var dd = parseInt(o.linieDicke, 10);
-    if(!(dd >= 1 && dd <= 8)){ dd = (d >= 1 && d <= 8) ? d : FARB_STD.linieDicke; }
-    o.linieDicke = dd;
-    return o;
-  }
-  function farbMerken(o){
-    try{ localStorage.setItem(FARB_KEY, JSON.stringify(o)); }catch(e){}
-    try{
-      localStorage.setItem(LIN_FARBE_KEY, o.linieFarbe);
-      localStorage.setItem(LIN_DICKE_KEY, String(o.linieDicke));
-    }catch(e2){}
-  }
-  /* 3D-Wasserfall: Palette (cmap) und Hintergrund (bg) */
-  /* v6.11: 3D-Palette/Hintergrund setzen - mehrfach abgesichert.
-     Vorher wurde nur EINMAL gesetzt. War das 3D-Plugin in dem Moment noch
-     nicht fertig (es startet erst nach dem Layout), ging der Wert verloren -
-     im Styler aenderte sich dann nichts. Jetzt wird zusaetzlich nachgefasst:
-     nach 300/900/2000 ms und sobald das Plugin bereit ist. Ausserdem wird die
-     Farbe direkt auf die 3D-Flaeche geschrieben, damit sie SOFORT zu sehen ist. */
-  function dnx3dFlaecheMalen(pl){
-    try{
-      var c = document.getElementById("dnx3d-canvas");
-      var w = document.getElementById("dnx3d-wrap");
-      /* v6.14: erst die eigene Aufzeichnung, dann (nur bei gueltigem Wert)
-         das, was das 3D-Tool gerade zeigt */
-      var s = dnx3dHgLesen();
-      if(pl && pl.settings && farb3dWertOk(pl.settings.bg)){ s = { bg: String(pl.settings.bg), cmap: s.cmap }; }
-      /* v6.13: eigene Berechnung - die Formel des 3D-Tools legt einen 72-90 %
-         dunklen Schleier ueber die Palette, dadurch sah jede Verlaufs-Wahl
-         schwarz aus. Hier wird die Palette selbst gezeigt. */
-      var css = farb3dHgCss(s.bg);
-      /* v6.27: auch Paletten sind hier Hintergrund-Verlaeufe. Die separate
-         3D-Farbtabelle und der 2D-Angleich bleiben davon unberuehrt. */
-      var dunkel = !css || css === "rgba(0,0,0,1)";
-      /* v6.14: Der Hintergrund gehoert HINTER die 3D-Zeichnung. Das 3D-Feld
-         fuellt das ganze Teil, das 2D-Bild liegt daneben/daueber - wurde die
-         Farbe auf das Canvas gemalt, overschrieb sie nur die 3D-Ebene und der
-         eigentliche Hintergrund blieb unsichtbar (User: "geht nicht").
-         Deshalb: Farbe auf den Rahmen (dnx3d-wrap) und das Canvas selbst auf
-         durchsichtig, damit es den Rahmen durchlaesst. */
-      if(c){
-        if(dunkel){ try{ c.style.removeProperty("background"); }catch(eC){} }
-        else { try{ c.style.setProperty("background", "transparent", "important"); }catch(eC2){} }
-      }
-      if(w){
-        if(css && !dunkel){ try{ w.style.setProperty("background", css, "important"); }catch(eW){} }
-        else { try{ w.style.removeProperty("background"); }catch(eW2){} }
-      }
-      /* Merker, damit das 3D-Tool seinen dunklen Schleier nicht zurueckholt */
-      window.__dnx3dFremdHg = (!dunkel && css) ? 1 : 0;   /* DNX3DBG-V620 */
-    }catch(e1){}
-  }
-  /* v6.14: Wache. Das 3D-Tool malt beim Setzen einer anderen Farbe seinen
-     eigenen dunklen Schleier zurueck auf die Leinwand - die liegt aber VOR
-     dem Hintergrund. Diese Wache laesst die Leinwand durchsichtig bleiben,
-     damit der im Styler gewaehlte Hintergrund wirklich zu sehen ist. */
-  if(!window.__dnx3dHgWache){
-    window.__dnx3dHgWache = true;
-    setInterval(function(){
-      try{
-        var c = document.getElementById("dnx3d-canvas");
-        if(!c || !window.__dnx3dFremdHg){ return; }
-        if(c.style.getPropertyValue("background") !== "transparent"){
-          c.style.setProperty("background", "transparent", "important");
-        }
-        var w = document.getElementById("dnx3d-wrap");
-        /* v6.14: was das 3D-Werkzeug gerade selbst zeigt, hat Vorrang -
-           sonst wirde die eigene Auswahl dort von der Wache uebermalt */
-        var plHg = null;
-        try{ var pl = window.Plugins && window.Plugins.dnx_3dtool;
-             if(pl && pl.settings && farb3dWertOk(pl.settings.bg)){ plHg = String(pl.settings.bg); } }catch(eP){ plHg = null; }
-        var s = dnx3dHgLesen();
-        var css = farb3dHgCss(plHg || s.bg);
-        /* v6.27: Verlauf gehoert hinter die 3D-Flaeche, nicht darauf. */
-        if(w && css && css !== "rgba(0,0,0,1)" && w.style.getPropertyValue("background") !== css){
-          w.style.setProperty("background", css, "important");
-        }
-      }catch(eW){}
-    }, 900);
-  }
-  function farb3dHgCss(v){
-    v = String(v == null ? "Standard" : v);
-    /* v6.14: nur noch ein ganz leichter Schleier - die Palette soll klar zu
-       sehen sein (0.72/0.90 im 3D-Tool = schwarz, 0.30/0.55 immer noch dunkel) */
-    var schleier = "linear-gradient(rgba(0,0,0,0.18), rgba(0,0,0,0.42)), ";
-    if(v === "Standard"){ return "rgba(0,0,0,1)"; }
-    if(/^#[0-9a-fA-F]{6}$/.test(v)){ return v; }
-    if(v.indexOf("palraw:") === 0){
-      var g = "";
-      try{ g = (typeof window.__dnxPalVerlauf === "function") ? window.__dnxPalVerlauf(v.slice(7)) : ""; }catch(eV){ g = ""; }
-      if(!g){
-        /* zweiter Weg: Palette direkt aus den Rohdaten bauen */
-        try{
-          var d = (typeof window.dnxPalDaten === "function") ? window.dnxPalDaten() : {};
-          var hex = (d.wf || {})[v.slice(7)];
-          if(typeof hex === "string" && hex.length >= 6){
-            var tt = [], n2 = Math.floor(hex.length / 6);
-            for(var i2 = 0; i2 < n2; i2++){
-              tt.push("rgb(" + parseInt(hex.substr(i2*6,2),16) + "," + parseInt(hex.substr(i2*6+2,2),16) + ","
-                      + parseInt(hex.substr(i2*6+4,2),16) + ") " + Math.round(i2 / Math.max(1, n2-1) * 100) + "%");
-            }
-            if(tt.length){ g = "linear-gradient(to top," + tt.join(",") + ")"; }
-          } else if(hex && hex.length){
-            var t3 = [];
-            for(var j2 = 0; j2 < hex.length; j2++){
-              t3.push("rgb(" + ((hex[j2] >> 16) & 255) + "," + ((hex[j2] >> 8) & 255) + "," + (hex[j2] & 255) + ") "
-                      + Math.round(j2 / Math.max(1, hex.length - 1) * 100) + "%");
-            }
-            if(t3.length){ g = "linear-gradient(to top," + t3.join(",") + ")"; }
-          }
-        }catch(eD){ g = ""; }
-      }
-      if(g){ return schleier + g; }
-      /* dritter Weg: Name statt Kennung (z. B. "Eis") */
-      try{
-        var nm = palRohId(v.slice(7));
-        if(nm && nm !== v.slice(7)){
-          var g3 = (typeof window.__dnxPalVerlauf === "function") ? window.__dnxPalVerlauf(nm) : "";
-          if(g3){ return schleier + g3; }
-        }
-      }catch(eN){}
-      return "rgba(0,0,0,1)";
-    }
-    /* Klarname ohne "palraw:" (z. B. "DNX Neon", "Eis") */
-    try{
-      var id = palRohId(v);
-      if(id && typeof window.__dnxPalVerlauf === "function"){
-        var g2 = window.__dnxPalVerlauf(id);
-        if(g2){ return schleier + g2; }
-      }
-    }catch(e2){}
-    return "rgba(0,0,0,1)";
-  }
-  function palRohId(name){
-    try{
-      var d = (typeof window.dnxPalDaten === "function") ? window.dnxPalDaten() : {};
-      var alle = [].concat(d.dnx || [], d.msdr || [], d.orig || []);
-      for(var i = 0; i < alle.length; i++){
-        if(String(alle[i][0]) === String(name) || String(alle[i][1]) === String(name)){ return String(alle[i][0]); }
-      }
-    }catch(e){}
-    return String(name);
-  }
-  /* v6.14: Das 3D-Tool schreibt einen ungueltigen Wert (z. B. eine reine
-     Farbe, die seine eigene Auswahlliste nicht kennt) als LUEHE in seine
-     Einstellung zurueck. Der Styler merkt sich die Wahl deshalb selbst und
-     koennte sonst sofort wieder zurueckgesetzt werden ("geht nicht"). */
-  function farb3dWertOk(v){
-    v = String(v == null ? "" : v);
-    return v === "Standard" || /^#[0-9a-fA-F]{6}$/.test(v) || v.indexOf("palraw:") === 0;
-  }
-  function dnx3dHgLesen(){
-    var o = s3dLesen(), st = {};
-    try{ st = JSON.parse(localStorage.getItem(FARB_KEY) || "{}") || {}; }catch(e1){ st = {}; }
-    var bg = farb3dWertOk(st.bg3d) ? String(st.bg3d) : (farb3dWertOk(o.bg) ? String(o.bg) : "Standard");
-    var cm = (typeof st.cmap3d === "string" && st.cmap3d) ? st.cmap3d
-           : ((typeof o.colormap === "string" && o.colormap) ? o.colormap : "owrx");
-    return { bg: bg, cmap: cm };
-  }
-  function dnx3dHgMerken(bg, cmap){
-    try{
-      var st = JSON.parse(localStorage.getItem(FARB_KEY) || "{}") || {};
-      if(farb3dWertOk(bg)){ st.bg3d = String(bg); }
-      if(typeof cmap === "string" && cmap){ st.cmap3d = cmap; }
-      localStorage.setItem(FARB_KEY, JSON.stringify(st));
-    }catch(e){}
-  }
-  /* Das 3D-Werkzeug hat eine eigene Hintergrund-Auswahl. Echte Benutzerwahl
-     dort wird auch fuer den gemeinsamen Styler-Standard erfasst. */
-  if(!window.__dnx3dHgVerbindet){
-    window.__dnx3dHgVerbindet = true;
-    window.addEventListener("dnx3d:hintergrund", function(ev){
-      var bg = ev && ev.detail && ev.detail.bg;
-      if(!farb3dWertOk(bg)){ return; }
-      window.__dnx3dAuftrag = (window.__dnx3dAuftrag || 0) + 1;
-      if(window.__dnx3dTimer){ clearTimeout(window.__dnx3dTimer); window.__dnx3dTimer = null; }
-      if(window.__dnx3dTakt){ clearInterval(window.__dnx3dTakt); window.__dnx3dTakt = null; }
-      dnx3dHgMerken(bg, null);
-      try{ dnx3dFlaecheMalen(window.Plugins && window.Plugins.dnx_3dtool); }catch(e){}
-      try{ farbSyncUi(); }catch(e2){}
-    });
-  }
-  /* v6.27: Die Farbtabelle gehoert nur zur 3D-Flaeche. Ein eventuell ebenfalls
-     gewaehlter Verlauf im Hintergrund ist davon vollstaendig unabhaengig. */
-  function dnx3dFlaechenWert(v){
-    v = String(v == null ? "" : v);
-    if(!v || v === "owrx" || v === "Standard"){ return ""; }
-    if(v.indexOf("palraw:") === 0){ return v; }
-    if(/^#[0-9a-fA-F]{6}$/.test(v)){ return ""; }
-    var id = "";
-    try{ id = palRohId(v); }catch(e){ id = ""; }
-    if(id && id !== v){ return "palraw:" + id; }
-    /* keinen Fremdnamen in die 3D-Farbtabelle schreiben - das 3D-Werkzeug
-       kennt nur "owrx" (wie 2D) und seine eigenen Namen */
-    return "";
-  }
-  function dnx3dFarbeSetzen(cmap, bg){
-    var o = s3dLesen(), aend = false;
-    var hatCmap = typeof cmap === "string" && !!cmap;
-    var hatBg = typeof bg === "string" && !!bg;
-    if(hatBg || hatCmap){ dnx3dHgMerken(bg, cmap); }
-    var fl = dnx3dFlaechenWert(cmap);
-    if(hatCmap){
-      o.colormap = fl || (cmap === "Standard" ? "owrx" : cmap);
-      o.cmapWahl = 1;            /* eigene Flaechenwahl nach F5 behalten */
-      aend = true;
-    }
-    if(hatBg){
-      o.bg = bg;                 /* auch palraw: ist ein echter Hintergrund */
-      aend = true;
-    }
-    if(!aend){ return; }
-    try{ localStorage.setItem("dnx_3dtool", JSON.stringify(o)); }catch(e){}
-
-    var bereitsGesetzt = false;
-    function anwenden(){
-      var pl = null;
-      try{ pl = (window.Plugins && window.Plugins.dnx_3dtool) ? window.Plugins.dnx_3dtool : null; }catch(eP){ pl = null; }
-      if(pl && pl.configure && pl.settings){
-        /* v6.28: Im 3D-Werkzeug kann das change-Ereignis verschluckt werden.
-           Hat der Nutzer dort NACH unserem ersten Setzen etwas anderes gewaehlt,
-           darf ein 300-ms-Nachlauf das Feld nicht vor der 700-ms-Wache loeschen.
-           Die Wache uebernimmt die Wahl und beendet dann die alten Nachlaeufe.
-           Das ERSTE Setzen (auch ein neuer gemeinsamer Standard) hat Vorrang. */
-        if(bereitsGesetzt && hatBg){
-          var feld = document.getElementById("dnx3d-hg");
-          var wahl = feld && String(feld.value || "");
-          if(farb3dWertOk(wahl) && wahl !== String(pl.settings.bg || "Standard")){ return true; }
-        }
-        var cfg = {};
-        if(hatCmap){ cfg.colormap = o.colormap; cfg.cmapWahl = 1; }
-        if(hatBg){ cfg.bg = o.bg; }
-        try{ pl.configure(cfg); bereitsGesetzt = true; }catch(eC){}
-        dnx3dFlaecheMalen(pl);
-        return true;
-      }
-      if(typeof window.dnx3dApi === "function"){
-        var apiCfg = {};
-        if(hatCmap){ apiCfg.cmap = o.colormap; }
-        if(hatBg){ apiCfg.bg = o.bg; }
-        try{ window.dnx3dApi(apiCfg); }catch(eA){}
-        dnx3dFlaecheMalen(null);
-        return true;
-      }
-      dnx3dFlaecheMalen(null);
-      return false;
-    }
-    /* v6.12: immer nur der JUENGSTE Auftrag darf setzen. Vorher liefen die
-       Nachlauf-Timer alter Auftraege weiter und schrieben den alten Wert
-       zurueck - dadurch blieb im Feld eine andere Farbe stehen als gewaehlt. */
-    window.__dnx3dAuftrag = (window.__dnx3dAuftrag || 0) + 1;
-    var meinAuftrag = window.__dnx3dAuftrag;
-    if(window.__dnx3dTimer){ clearTimeout(window.__dnx3dTimer); window.__dnx3dTimer = null; }
-    if(window.__dnx3dTakt){ clearInterval(window.__dnx3dTakt); window.__dnx3dTakt = null; }
-    function nurAktuell(fn){
-      return function(){
-        if(window.__dnx3dAuftrag !== meinAuftrag){ return true; }
-        return fn();
-      };
-    }
-    var setze = nurAktuell(anwenden);
-    setze();
-    var offen = [300, 900, 2000, 4000];
-    (function naechster(){
-      if(!offen.length || window.__dnx3dAuftrag !== meinAuftrag){ return; }
-      var ms = offen.shift();
-      window.__dnx3dTimer = setTimeout(function(){ setze(); naechster(); }, ms);
-    })();
-    /* und noch einmal, sobald das Plugin fertig ist */
-    var versuche = 0;
-    window.__dnx3dTakt = setInterval(function(){
-      versuche++;
-      if(window.__dnx3dAuftrag !== meinAuftrag || setze() || versuche > 120){ clearInterval(window.__dnx3dTakt); window.__dnx3dTakt = null; }
-    }, 500);
-  }
-  /* rote Ziehlinien: Farbe und Dicke */
-  function dnxLinieHaltbar(hex){
-    var m = /^#?([0-9a-fA-F]{6})$/.exec(String(hex || ""));
-    if(!m) return "";
-    var v = m[1].toLowerCase();
-    var r = parseInt(v.substr(0,2),16), g = parseInt(v.substr(2,2),16), b = parseInt(v.substr(4,2),16);
-    var mx = Math.max(r,g,b), mn = Math.min(r,g,b);
-    if(mx >= 210 && (mx - mn) <= 56) return "";      /* zu hell und zu blass */
-    return "#" + v;
-  }
-  function dnxLinienLook(farbe, dicke, merken){
-    var gewaehlt = farbHex(farbe, "");
-    farbe = dnxLinieHaltbar(gewaehlt) || FARB_STD.linieFarbe;
-    var hell = (gewaehlt && farbe.toLowerCase() !== gewaehlt.toLowerCase());
-    var d = parseInt(dicke, 10);
-    if(!(d >= 1 && d <= 8)){ d = FARB_STD.linieDicke; }
-    try{
-      var r = document.documentElement;
-      r.style.setProperty("--dnx-linie-farbe", farbe);
-      r.style.setProperty("--dnx-linie-dicke", d + "px");
-      var v = farbe.slice(1);
-      var rr = parseInt(v.substr(0,2),16), gg = parseInt(v.substr(2,2),16), bb = parseInt(v.substr(4,2),16);
-      r.style.setProperty("--dnx-linie-schatten", "rgba(" + rr + "," + gg + "," + bb + ",.9)");
-      r.style.setProperty("--dnx-linie-schatten2", "rgba(" + rr + "," + gg + "," + bb + ",.38)");
-      if(hell){ try{ window.__dnxLinieKorrigiert = gewaehlt + " -> " + farbe; }catch(eK){} }
-    }catch(e){}
-    if(merken){
-      var o = farbLesen();
-      o.linieFarbe = farbe;
-      o.linieDicke = d;
-      farbMerken(o);
-    }
-    return { farbe: farbe, dicke: d };
-  }
-  /* alles, was der Block anzeigt - als ein Objekt (auch fuer "Standard fuer alle") */
-  function farbStand(){
-    var l = farbLesen();
-    var sp = { pal: "", hg: "" };
-    try{ if(typeof window.__dnxSpecLesen === "function"){ sp = window.__dnxSpecLesen() || sp; } }catch(e){}
-    var d3 = dnx3dHgLesen();   /* v6.14: eigene Aufzeichnung schlaegt das 3D-Tool */
-    return {
-      wf: dnxWfId(),
-      cmap3d: String(d3.cmap || "owrx"),
-      bg3d: String(d3.bg || "Standard"),
-      pal: String(sp.pal || ""),
-      hg: String(sp.hg || ""),
-      linieFarbe: l.linieFarbe,
-      linieDicke: l.linieDicke,
-      fftH: dnxFftHGemerkt(),
-      topH: dnxTopHGemerkt()
-    };
-  }
-  /* Werte uebernehmen (auch vom Standard fuer alle) */
-  function farbAnwenden(o){
-    if(!o || typeof o !== "object"){ return false; }
-    var tat = false;
-    if(typeof o.wf === "string" && dnxWfOk(o.wf)){
-      try{ localStorage.setItem(WF_KEY, o.wf); }catch(e){}
-      try{ dnxWfApply(o.wf); }catch(e2){}
-      tat = true;
-    }
-    if(typeof o.cmap3d === "string" || typeof o.bg3d === "string"){
-      dnx3dFarbeSetzen(o.cmap3d, o.bg3d);
-      tat = true;
-    }
-    if((typeof o.pal === "string" && o.pal) || (typeof o.hg === "string" && o.hg)){
-      try{
-        if(typeof window.__dnxSpecSet === "function"){ window.__dnxSpecSet({ pal: o.pal, hg: o.hg }); }
-      }catch(e3){}
-      tat = true;
-    }
-    if(o.linieFarbe || o.linieDicke){
-      dnxLinienLook(o.linieFarbe, o.linieDicke, true);
-      tat = true;
-    }
-    if(typeof o.topH === "number"){
-      try{ if(o.topH > 0){ dnxTopHSetzen(o.topH, true); } else { dnxTopHReset(); } }catch(e5){}
-      tat = true;
-    }
-    if(typeof o.fftH === "number"){
-      /* Die alte lokale Hoehenwahl der Spektrum-Leiste darf die verteilte
-         untere rote Linie im 900-ms-Takt nicht mehr zurueckstellen. */
-      try{ if(typeof window.__dnxSpecHoeheFreigeben === "function"){ window.__dnxSpecHoeheFreigeben(); } }catch(eSH){}
-      try{ if(o.fftH > 0){ dnxFftHSetzen(o.fftH, true); } else { dnxFftHReset(); } }catch(e4){}
-      tat = true;
-    }
-    try{ farbSyncUi(); }catch(e6){}
-    return tat;
-  }
-
-  /* ---- Oberflaeche: eigener Block in "Aussehen & Farben" ---- */
-  var farbEls = {};
-  var farbLetzt = {};
-  function farbOpt(liste, wert){
-    var h = "", i;
-    for(i = 0; i < liste.length; i++){
-      h += '<option value="' + liste[i][0] + '"' + (String(liste[i][0]) === String(wert) ? " selected" : "") + '>'
-         + liste[i][1] + "</option>";
-    }
-    return h;
-  }
-  function farbGruppen(liste, wert){
-    var gruppen = {}, reihen = [], i;
-    for(i = 0; i < liste.length; i++){
-      if(!gruppen[liste[i][2]]){ gruppen[liste[i][2]] = []; reihen.push(liste[i][2]); }
-      gruppen[liste[i][2]].push(liste[i]);
-    }
-    var h = "";
-    for(i = 0; i < reihen.length; i++){
-      h += '<optgroup label="' + reihen[i] + '">' + farbOpt(gruppen[reihen[i]], wert) + "</optgroup>";
-    }
-    return h;
-  }
-  function palRohListe(){
-    var out = [], i;
-    var d = (typeof window.dnxPalDaten === "function") ? window.dnxPalDaten() : {};
-    var gruppen = [["DNX-Paletten", d.dnx], ["MultiSDR", d.msdr], ["OpenWebRX", d.orig]];
-    for(var g = 0; g < gruppen.length; g++){
-      var arr = gruppen[g][1] || [];
-      for(i = 0; i < arr.length; i++){
-        out.push(["palraw:" + arr[i][0], arr[i][1], gruppen[g][0]]);
-      }
-    }
-    return out;
-  }
-  var S3D_NAMEN = ["A.C.A.B.", "Acton", "Angel", "Bamako", "Batlow", "Buda", "Cool", "Cubegamma", "Cubehelix",
-    "Cubehlx2", "Devon", "Hawaii", "Hot", "Icy", "Imola", "Jet", "Lajolla", "Lapaz", "Loggray", "Mint",
-    "Parula", "Plasma", "Prism", "Rainbow", "Shrimp", "Tokyo", "Turbo", "Viridis"];
-  var HG_FARBEN_KURZ = [["Standard", "Standard"], ["#000000", "Schwarz"], ["#101820", "Anthrazit"],
-    ["#03121f", "Dunkelblau"], ["#04140c", "Dunkelgruen"], ["#150320", "Dunkelviolett"],
-    ["#1a0505", "Dunkelrot"], ["#141005", "Dunkelbraun"]];
-
-  /* ---- v6.7: Farbstreifen + Name fuer die Auswahlfelder ---- */
-  var FARB_FILTER = {
-    "Original": "Spektrum bleibt wie vom Empfaenger gezeichnet",
-    "Feuer":   "Schwarz -> Rot -> Orange -> Gelb",
-    "Eis":     "Schwarz -> Blau -> Cyan -> Weiss",
-    "Gruen":   "Schwarz -> Dunkelgruen -> Gruen -> Weiss",
-    "Graustufen": "Schwarz -> Grau -> Weiss",
-    "Neon":    "Schwarz -> Violett -> Cyan -> Weiss",
-    "Bernstein": "Schwarz -> Braun -> Bernstein -> Weiss",
-    "Violett": "Schwarz -> Violett -> Rosa -> Weiss",
-    "Blau":    "Schwarz -> Blau -> Hellblau -> Weiss"
-  };
-  function farbCss(rgb){
-    return "rgb(" + Math.round(rgb[0]) + "," + Math.round(rgb[1]) + "," + Math.round(rgb[2]) + ")";
-  }
-  function farbStreifenCss(f, wert){
-    wert = String(wert == null ? "" : wert);
-    try{
-      if(f === "pal" || f === "hg"){
-        if(FARB_FILTER[wert]){ return farbFilterVerlauf(wert); }
-        if(wert.indexOf("palraw:") === 0){
-          var g = (typeof window.__dnxPalVerlauf === "function") ? window.__dnxPalVerlauf(wert.slice(7)) : "";
-          if(g){ return g.replace("to top", "to right"); }
-        }
-        if(f === "hg" && /^#[0-9a-fA-F]{6}$/.test(wert)){ return "linear-gradient(to right," + wert + "," + wert + ")"; }
-        return "linear-gradient(to right,#101418,#1d2429)";
-      }
-      if(f === "bg3d"){
-        if(/^#[0-9a-fA-F]{6}$/.test(wert)){ return "linear-gradient(to right," + wert + "," + wert + ")"; }
-        if(wert === "Standard" || !wert){ return "linear-gradient(to right,#000000,#101418)"; }
-        if(wert.indexOf("palraw:") === 0){
-          var g2 = (typeof window.__dnxPalVerlauf === "function") ? window.__dnxPalVerlauf(wert.slice(7)) : "";
-          if(g2){ return g2.replace("to top", "to right"); }
-        }
-        return "linear-gradient(to right,#101418,#1d2429)";
-      }
-      if(f === "wf" || f === "cmap3d"){
-        /* echte Theme-Farben des Empfaengers (UI.wfThemes) - damit zeigt der
-           Streifen genau das, was der Wasserfall nachher zeichnet */
-        var them = (window.UI && UI.wfThemes) ? UI.wfThemes[wert] : null;
-        if(them && them.length){
-          var tt = [], ti, tn = Math.min(them.length, 48);
-          for(ti = 0; ti < tn; ti++){
-            var cv = them[Math.round(ti * (them.length - 1) / Math.max(1, tn - 1))];
-            if(cv == null){ continue; }
-            tt.push("rgb(" + ((cv >> 16) & 255) + "," + ((cv >> 8) & 255) + "," + (cv & 255) + ") "
-                    + Math.round(ti * 100 / Math.max(1, tn - 1)) + "%");
-          }
-          if(tt.length){ return "linear-gradient(to right," + tt.join(",") + ")"; }
-        }
-        if(wert === "owrx" || wert === "default" || wert === ""){
-          var cols = (window.Waterfall && Waterfall.colors) ? Waterfall.colors : null;
-          if(cols && cols.length){
-            var teile = [], i, n = Math.min(cols.length, 64);
-            for(i = 0; i < n; i++){
-              var c = cols[Math.round(i * (cols.length - 1) / Math.max(1, n - 1))];
-              if(!c){ continue; }
-              var sk = (c[0] > 2 || c[1] > 2 || c[2] > 2) ? 1 : 255;
-              teile.push(farbCss([c[0] * sk, c[1] * sk, c[2] * sk]) + " " + Math.round(i * 100 / Math.max(1, n - 1)) + "%");
-            }
-            if(teile.length){ return "linear-gradient(to right," + teile.join(",") + ")"; }
-          }
-          return "linear-gradient(to right,#0b0f12,#1f8f52,#e8fff0)";
-        }
-        /* 3D-Paletten (SDRangel-Namen wie "A.C.A.B.") liegen als Farbtabelle
-           im 3D-Plugin - wenn es sie anbietet, wird sie benutzt */
-        try{
-          var farbTab = (window.dnx3dApi && window.dnx3dApi.palette) ? window.dnx3dApi.palette(wert) : null;
-          if(farbTab && farbTab.length){
-            var t3 = [], i3, n3 = Math.min(farbTab.length, 48);
-            for(i3 = 0; i3 < n3; i3++){
-              var c3 = farbTab[Math.round(i3 * (farbTab.length - 1) / Math.max(1, n3 - 1))];
-              if(!c3){ continue; }
-              var sk3 = (c3[0] > 2 || c3[1] > 2 || c3[2] > 2) ? 1 : 255;
-              t3.push("rgb(" + Math.round(c3[0] * sk3) + "," + Math.round(c3[1] * sk3) + "," + Math.round(c3[2] * sk3) + ") "
-                      + Math.round(i3 * 100 / Math.max(1, n3 - 1)) + "%");
-            }
-            if(t3.length){ return "linear-gradient(to right," + t3.join(",") + ")"; }
-          }
-        }catch(e3d){}
-        var m = (window.dnxPalDaten ? window.dnxPalDaten() : {});
-        var alle = [].concat(m.dnx || [], m.msdr || [], m.orig || []);
-        for(var k = 0; k < alle.length; k++){
-          if(String(alle[k][0]) === wert || String(alle[k][1]) === wert){
-            var g3b = (typeof window.__dnxPalVerlauf === "function") ? window.__dnxPalVerlauf(String(alle[k][0]).replace(/^m188_/, "")) : "";
-            if(g3b){ return g3b.replace("to top", "to right"); }
-            break;
-          }
-        }
-        return "linear-gradient(to right,#101418,#2a3a44,#dfefff)";
-      }
-    }catch(eFS){}
-    return "linear-gradient(to right,#101418,#1d2429)";
-  }
-  try{ window.__dnxStylerFilterVerlauf = farbFilterVerlauf; }catch(eFV){}
-  function farbFilterVerlauf(name){
-    var v = {
-      "Original": ["#101418", "#26424f", "#8fd6ff", "#ffffff"],
-      "Feuer":    ["#000000", "#7a0f00", "#ff5a00", "#ffd400"],
-      "Eis":      ["#000010", "#0b3a6b", "#3fb7ff", "#ffffff"],
-      "Gruen":    ["#000000", "#053b1c", "#28c46a", "#e9fff2"],
-      "Graustufen": ["#000000", "#7a7a7a", "#c8c8c8", "#ffffff"],
-      "Neon":     ["#000000", "#3b0a5c", "#00c2ff", "#c8fff6"],
-      "Bernstein": ["#000000", "#4a2a00", "#ff9f1a", "#ffe9b0"],
-      "Violett":  ["#000000", "#2a0a3d", "#9b4dff", "#f0d9ff"],
-      "Blau":     ["#000000", "#062a5e", "#2f7bff", "#dcefff"]
-    }[name];
-    if(!v){ return "linear-gradient(to right,#101418,#1d2429)"; }
-    var teile = [], i;
-    for(i = 0; i < v.length; i++){ teile.push(v[i] + " " + Math.round(i * 100 / (v.length - 1)) + "%"); }
-    return "linear-gradient(to right," + teile.join(",") + ")";
-  }
-  /* v6.17: Zusatz, wenn das gewaehlte Feld gerade keine Flaeche hat */
-  function farbKeineFlaeche(){
-    try{
-      if(typeof window.__dnxSpecSichtbar === "function" && !window.__dnxSpecSichtbar()){
-        var z = window.__dnxPalZeile || {};
-        if(z.ruhig){
-          return "  -  die Spektrum-Zeile ist von Hand ausgeblendet: bitte im Empfaenger-Panel bei 'Spektrum' wieder einschalten, dann wirkt die Palette";
-        }
-        return "  -  die Spektrum-Zeile wird fuer diese Palette eingeblendet (beim Zuruecksetzen auf 'Original' klappt sie wieder zu)";
-      }
-    }catch(e){}
-    return "";
-  }
-  function farbJetztText(f, wert){
-    var t0 = String(wert == null ? "" : wert);
-    var s = farbJetztTextOhne(f, wert);
-    /* hg faerbt die Leiste - das wirkt immer. Der Hinweis passt nur, wenn
-       ueberhaupt eine Palette gewaehlt ist: "Original" soll nichts tun. */
-    if(f === "pal" && t0 !== "Original" && t0 !== ""){ s = s + farbKeineFlaeche(); }
-    return s;
-  }
-  function farbJetztTextOhne(f, wert){
-    var t = String(wert == null ? "" : wert);
-    if(f === "pal"){
-      if(FARB_FILTER[t]){ return "Filter: " + t + " - " + FARB_FILTER[t]; }
-      if(t.indexOf("palraw:") === 0){
-        var d = (typeof window.dnxPalDaten === "function") ? window.dnxPalDaten() : {};
-        var alle = [].concat(d.dnx || [], d.msdr || [], d.orig || []);
-        for(var i = 0; i < alle.length; i++){ if("palraw:" + alle[i][0] === t){ return "Palette: " + alle[i][1]; } }
-        return "Palette: " + t.slice(7);
-      }
-      return "Filter: " + t;
-    }
-    if(f === "hg"){
-      if(t === "Standard"){ return "Hintergrund: Standard"; }
-      if(/^#[0-9a-fA-F]{6}$/.test(t)){ return "Hintergrund: " + farbHexName(t) + " " + t; }
-      if(t.indexOf("palraw:") === 0){ return "Hintergrund: Verlauf " + palRohName(t.slice(7)); }
-      return "Hintergrund: " + t;
-    }
-    if(f === "bg3d"){
-      if(t === "Standard"){ return "Hintergrund: Standard (wie bisher ganz dunkel)"; }
-      if(/^#[0-9a-fA-F]{6}$/.test(t)){ return "Hintergrund: " + farbHexName(t) + " " + t; }
-      /* v6.14: bis hierhin stand der rohe Kennungs-Text da (z. B.
-         "palraw:m188_eis") - jetzt wie beim Spektrum-Hintergrund in Klartext */
-      if(t.indexOf("palraw:") === 0){
-        return "Hintergrund: Verlauf " + palRohName(t.slice(7));
-      }
-      return "Hintergrund: " + t;
-    }
-    if(f === "cmap3d"){ return t === "owrx" ? "Palette: wie 2D-Wasserfall" : "Palette: " + t; }
-    if(f === "wf"){ return "Palette: " + dnxWfName(t); }
-    return t;
-  }
-  function farbHexName(hex){
-    var h = String(hex).toLowerCase(), i;
-    for(i = 0; i < HG_FARBEN_KURZ.length; i++){
-      if(String(HG_FARBEN_KURZ[i][0]).toLowerCase() === h){ return HG_FARBEN_KURZ[i][1]; }
-    }
-    return "Farbe";
-  }
-  function palRohName(id){
-    try{
-      var d = (typeof window.dnxPalDaten === "function") ? window.dnxPalDaten() : {};
-      var alle = [].concat(d.dnx || [], d.msdr || [], d.orig || []);
-      for(var i = 0; i < alle.length; i++){
-        if(String(alle[i][0]) === String(id) || String(alle[i][0]).replace(/^m188_/, "") === String(id)
-           || String(alle[i][1]) === String(id)){ return alle[i][1]; }
-      }
-    }catch(e){}
-    return String(id);
-  }
-  function farbStreifenSync(){
-    if(!farbEls.box){ return; }
-    var felder = ["wf", "cmap3d", "bg3d", "pal", "hg"], i;
-    for(i = 0; i < felder.length; i++){
-      var k = felder[i];
-      var el = farbEls[k];
-      if(!el){ continue; }
-      var st = farbEls.box.querySelector('[data-s="' + k + '"]');
-      var jt = farbEls.box.querySelector('[data-j="' + k + '"]');
-      if(st){ st.style.backgroundImage = farbStreifenCss(k, el.value); }
-      if(jt){ jt.textContent = farbJetztText(k, el.value); }
-    }
-  }
-
-  /* Auch eine aus einem aelteren Standard oder dem 3D-Werkzeug stammende
-     Sonderfarbe muss sichtbar bleiben, statt die Auswahlliste zu leeren. */
-  function farb3dAuswahlSichern(el, wert){
-    if(!el || typeof wert !== "string" || !wert){ return; }
-    var vorhanden = Array.prototype.some.call(el.options, function(o){ return o.value === wert; });
-    if(!vorhanden){
-      var opt = document.createElement("option");
-      opt.value = wert;
-      opt.textContent = wert.indexOf("palraw:") === 0 ? palRohName(wert.slice(7)) : wert;
-      el.appendChild(opt);
-    }
-    el.value = wert;
-  }
-  function farbSyncUi(){
-    if(!farbEls.box){ return; }
-    var st = farbStand();
-    try{
-      if(farbEls.wf){ farbEls.wf.value = st.wf; }
-      farb3dAuswahlSichern(farbEls.cmap3d, st.cmap3d);
-      farb3dAuswahlSichern(farbEls.bg3d, st.bg3d);
-      if(farbEls.pal){ farbEls.pal.value = st.pal; }
-      if(farbEls.hg){ farbEls.hg.value = st.hg; }
-      if(farbEls.linieFarbe){ farbEls.linieFarbe.value = st.linieFarbe; }
-      if(farbEls.linieDicke){ farbEls.linieDicke.value = String(st.linieDicke); farbEls.linieDickeW.textContent = st.linieDicke + " px"; }
-      if(farbEls.fftH){ farbEls.fftH.value = String(st.fftH); farbEls.fftHW.textContent = st.fftH > 0 ? (st.fftH + " px") : "Standard"; }
-      if(farbEls.topH){ farbEls.topH.value = String(st.topH); farbEls.topHW.textContent = st.topH > 0 ? (st.topH + " px") : "Standard"; }
-      farbLetzt.wf = String(st.wf);
-      farbLetzt.cmap3d = String(st.cmap3d);
-      farbLetzt.bg3d = String(st.bg3d);
-      farbLetzt.pal = String(st.pal);
-      farbLetzt.hg = String(st.hg);
-      farbLetzt.linieFarbe = String(st.linieFarbe);
-      farbLetzt.linieDicke = String(st.linieDicke);
-      farbLetzt.topH = String(st.topH);
-      farbLetzt.fftH = String(st.fftH);
-      farbStreifenSync();
-    }catch(e){}
-  }
-  try{ window.__dnxStylerFarbSync = function(){ try{ farbStreifenSync(); }catch(e){} }; }catch(eFS){}
-
-  /* v6.5: Sicherheitsnetz - falls das Styler-Fenster erst spaeter (oder von
-     anderer Stelle) aufgebaut wird, wird der Block nachgezogen. */
-  function farbBlockWachen(){
-    if(window.__dnxFarbWache){ return; }
-    window.__dnxFarbWache = true;
-    /* laeuft dauerhaft (sehr billig): der Styler kann jederzeit - auch erst
-       nach Minuten - geoeffnet werden, der Block muss dann trotzdem da sein */
-    setInterval(function(){
-      try{
-        if(document.getElementById("dnx-farben-box")){ return; }
-        if(document.getElementById("dnx-styler-ui")){ farbBlockBauen(); }
-      }catch(eW){}
-    }, 700);
-  }
-  try{ farbBlockWachen(); }catch(eWW){}
-
-  function farbBlockBauen(){
-    var ui = document.getElementById("dnx-styler-ui");
-    if(!ui || document.getElementById("dnx-farben-box")){ return false; }
-    /* Die Farb-Bedienelemente bleiben in einem gemeinsamen Container fuer
-       die bestehende Synchronisierung, erscheinen aber in eigenen Abschnitten. */
-    var ziel = ui.querySelector("#dnx-blk-receiver") || ui.querySelector(".head");
-    function einhaengen(el){
-      try{
-        if(ziel && ziel.parentNode === ui){ ui.insertBefore(el, ziel.nextSibling); }
-        else { ui.appendChild(el); }
-      }catch(eH){ try{ ui.appendChild(el); }catch(eH2){} }
-    }
-
-    if(!document.getElementById("dnx-farben-style")){
-      var stf = document.createElement("style");
-      stf.id = "dnx-farben-style";
-      stf.textContent = ""
-        + "#dnx-farben-box .dnx-farb-r{display:flex;align-items:center;gap:8px;margin:5px 0;}"
-        + "#dnx-farben-box .dnx-farb-r>label{flex:0 1 138px;min-width:70px;color:#bfe7cd;font:600 11px Arial,Helvetica,sans-serif;}"
-        + "#dnx-farben-box .dnx-farb-r>select{flex:1 1 auto;min-width:90px;max-width:100%;height:20px;background:#333;color:#eaf7ef;"
-        + "border:1px solid rgba(255,255,255,.22);border-radius:4px;font:9pt 'DejaVu Sans',Arial,sans-serif;}"
-        + "#dnx-farben-box .dnx-farb-r>input[type=range]{flex:1 1 auto;min-width:60px;height:20px;accent-color:#1f8f52;}"
-        + "#dnx-farben-box .dnx-farb-r>input[type=color]{flex:0 0 52px;height:20px;padding:0;border:1px solid rgba(255,255,255,.25);"
-        + "border-radius:4px;background:#333;}"
-        + "#dnx-farben-box .dnx-farb-w{flex:0 0 60px;text-align:right;color:#9fd8b4;font:600 10px Arial,Helvetica,sans-serif;}"
-        /* v6.6: Auswahlfelder ueber die volle Breite - sonst war nur
-           "DNX Klassik (" zu lesen und die Palette nicht zu erkennen. */
-        + "#dnx-farben-box .dnx-farb-r.dnx-sel{display:block !important;margin:8px 0 2px;}"
-        + "#dnx-farben-box .dnx-farb-r.dnx-sel>label{display:block !important;flex:none;margin-bottom:2px;}"
-        + "#dnx-farben-box .dnx-farb-r.dnx-sel>select{display:block !important;width:100% !important;max-width:100% !important;"
-        + "height:24px;font-size:12px;box-sizing:border-box;}"
-        + "#dnx-farben-box .dnx-farb-btns{display:flex;gap:6px;margin-top:9px;}"
-        + "#dnx-farben-box .dnx-farb-btns button{flex:1 1 0;height:22px;border-radius:5px;cursor:pointer;"
-        + "background:#1f8f52;color:#f2fff8;border:1px solid rgba(255,255,255,.25);font:700 10px Arial,Helvetica,sans-serif;}"
-        + "#dnx-farben-box .dnx-farb-btns button:hover{background:#25a862;}"
-        + "#dnx-farben-box .dnx-farb-status{margin:3px 0 6px;color:#a9d8b5;font:600 10px/1.3 Arial,Helvetica,sans-serif;}"
-        + "#dnx-farben-box .dnx-farb-status[data-fehler='1']{color:#ffd28a;}"
-        + "#dnx-farben-box .dnx-farb-h{margin:9px 0 4px;padding:3px 6px;border-radius:5px;background:rgba(31,143,82,.28);"
-        + "border:1px solid rgba(50,255,120,.35);color:#8dffb8;font:700 11px Arial,Helvetica,sans-serif;letter-spacing:.3px;}"
-        + "#dnx-farben-box .dnx-farb-h:first-child{margin-top:2px;}"
-        + "#dnx-farben-box .dnx-farb-tip{margin:3px 0 2px;color:#8fb9a1;font:400 10px Arial,Helvetica,sans-serif;line-height:1.3;}"
-        /* v6.7: Farbstreifen + Klartext unter jedem Auswahlfeld */
-        + "#dnx-farben-box .dnx-farb-streifen{display:block;height:12px;margin:3px 0 1px;border-radius:3px;"
-        + "border:1px solid rgba(255,255,255,.25);background-color:#222;}"
-        + "#dnx-farben-box .dnx-farb-jetzt{display:block;color:#8dffb8;font:600 10.5px Arial,Helvetica,sans-serif;"
-        + "line-height:1.25;word-break:break-word;margin-bottom:4px;}";
-      (document.head || document.documentElement).appendChild(stf);
-    }
-    var box = document.createElement("div");
-    box.id = "dnx-farben-box";
-    var linienBlock = dnxUiBlock("dnx-blk-linien", "Rote Linien", false);
-    var wfBlock = ui.querySelector("#dnx-blk-wasserfall") || dnxUiBlock("dnx-blk-wasserfall", "Wasserfall & 3D", false);
-    var spBlock = ui.querySelector("#dnx-blk-spektrum") || dnxUiBlock("dnx-blk-spektrum", "Spektrum", false);
-    box.appendChild(linienBlock); box.appendChild(wfBlock); box.appendChild(spBlock);
-    var body = linienBlock._dnxBody;
-    var wfBody = wfBlock._dnxBody;
-    var spBody = spBlock._dnxBody;
-
-    var wfListe = [];
-    var wfOL = dnxWfOrigListe();
-    for(i = 0; i < wfOL.length; i++){ wfListe.push([wfOL[i][0], wfOL[i][1], "OpenWebRX"]); }
-    for(i = 0; i < DNX_WF_DNX.length; i++){ wfListe.push([DNX_WF_DNX[i][0], DNX_WF_DNX[i][1], "DNX"]); }
-    var msdr = dnxMsdrList();
-    for(i = 0; i < msdr.length; i++){ wfListe.push([msdr[i][0], msdr[i][1], "MultiSDR"]); }
-
-    var rohL = palRohListe();
-    var s3dListe = [["owrx", "Waterfall (wie 2D)", "Standard"]];
-    for(i = 0; i < S3D_NAMEN.length; i++){ s3dListe.push([S3D_NAMEN[i], S3D_NAMEN[i], "3D-Paletten"]); }
-    var bg3dListe = [];
-    for(i = 0; i < HG_FARBEN_KURZ.length; i++){ bg3dListe.push([HG_FARBEN_KURZ[i][0], HG_FARBEN_KURZ[i][1], "Farben"]); }
-    for(i = 0; i < rohL.length; i++){ bg3dListe.push(rohL[i]); }
-    var palSpecListe = [["Original", "Original", "Filter-Paletten"], ["Feuer", "Feuer", "Filter-Paletten"],
-      ["Eis", "Eis", "Filter-Paletten"], ["Gruen", "Gruen", "Filter-Paletten"],
-      ["Graustufen", "Graustufen", "Filter-Paletten"], ["Neon", "Neon", "Filter-Paletten"],
-      ["Bernstein", "Bernstein", "Filter-Paletten"], ["Violett", "Violett", "Filter-Paletten"],
-      ["Blau", "Blau", "Filter-Paletten"]];
-    for(i = 0; i < rohL.length; i++){ palSpecListe.push(rohL[i]); }
-    var hgSpecListe = [];
-    for(i = 0; i < HG_FARBEN_KURZ.length; i++){ hgSpecListe.push([HG_FARBEN_KURZ[i][0], HG_FARBEN_KURZ[i][1], "Farben"]); }
-    for(i = 0; i < rohL.length; i++){ hgSpecListe.push(rohL[i]); }
-
-    /* Rote Linien, Wasserfall/3D und Spektrum sind voneinander getrennt. */
-    body.innerHTML =
-      '<div class="dnx-farb-r"><label>Rote Linien &ndash; Farbe</label><input type="color" data-f="linieFarbe" value="#ff2020"></div>'
-    + '<div class="dnx-farb-r"><label>Rote Linien &ndash; Dicke</label><input type="range" min="1" max="8" step="1" data-f="linieDicke"><span class="dnx-farb-w"></span></div>'
-    + '<div class="dnx-farb-r"><label>Rote Linie OBEN &ndash; Lage</label><input type="range" min="0" max="600" step="1" data-f="topH"><span class="dnx-farb-w"></span></div>'
-    + '<div class="dnx-farb-r"><label>Rote Linie UNTEN &ndash; Lage</label><input type="range" min="0" max="400" step="1" data-f="fftH"><span class="dnx-farb-w"></span></div>'
-    + '<div class="dnx-farb-tip">Farbe und Dicke gelten für beide roten Linien. Lage = Höhe der Ziehlinie (Standard = automatisch).</div>';
-    var wfFarben = document.createElement("div");
-    wfFarben.innerHTML =
-      '<div class="dnx-farb-tip">Jede Palette wirkt sofort im ganzen Wasserfall-Bild.</div>'
-    + '<div class="dnx-farb-r dnx-sel"><label>Wasserfall (2D)</label><select data-f="wf">' + farbGruppen(wfListe, "") + '</select><div class="dnx-farb-streifen" data-s="wf"></div><div class="dnx-farb-jetzt" data-j="wf"></div></div>'
-    + '<div class="dnx-farb-r dnx-sel"><label>3D-Wasserfall</label><select data-f="cmap3d">' + farbGruppen(s3dListe, "") + '</select><div class="dnx-farb-streifen" data-s="cmap3d"></div><div class="dnx-farb-jetzt" data-j="cmap3d"></div></div>'
-    + '<div class="dnx-farb-r dnx-sel"><label>3D-Hintergrund (Farbe / Verlauf)</label><select data-f="bg3d">' + farbGruppen(bg3dListe, "") + '</select><div class="dnx-farb-streifen" data-s="bg3d"></div><div class="dnx-farb-jetzt" data-j="bg3d"></div></div>'
-    + '<div class="dnx-farb-tip">Der Hintergrund ist unabhängig von der 3D-Fläche. Bei ⌂ 2D folgt die Fläche den 2D-Farben.</div>';
-    wfBody.appendChild(wfFarben);
-    var spFarben = document.createElement("div");
-    spFarben.innerHTML =
-      '<div class="dnx-farb-r dnx-sel"><label>Spektrum-Palette</label><select data-f="pal">' + farbGruppen(palSpecListe, "") + '</select><div class="dnx-farb-streifen" data-s="pal"></div><div class="dnx-farb-jetzt" data-j="pal"></div></div>'
-    + '<div class="dnx-farb-r dnx-sel"><label>Spektrum-Hintergrund</label><select data-f="hg">' + farbGruppen(hgSpecListe, "") + '</select><div class="dnx-farb-streifen" data-s="hg"></div><div class="dnx-farb-jetzt" data-j="hg"></div></div>'
-    + '<div class="dnx-farb-btns"><button data-a="zurueck" title="Wasserfall-, Spektrum-, 3D- und Linienfarben sowie Linienlagen zurücksetzen">Alle Farben und Linien zurücksetzen</button></div>';
-    spBody.appendChild(spFarben);
-
-    /* v6.6: gleiche Namen in verschiedenen Gruppen (z. B. "Eis" als Filter und
-       als Roh-Palette) bekommen die Gruppe in Klammern dazu - sonst sieht man
-       im Feld nicht, was man gerade gewaehlt hat. */
-    box.querySelectorAll("select[data-f]").forEach(function(sel){
-      var zahl = {}, i2, o2;
-      for(i2 = 0; i2 < sel.options.length; i2++){
-        var t2 = sel.options[i2].textContent;
-        zahl[t2] = (zahl[t2] || 0) + 1;
-      }
-      for(i2 = 0; i2 < sel.options.length; i2++){
-        o2 = sel.options[i2];
-        if(zahl[o2.textContent] > 1){
-          var g = o2.parentNode && o2.parentNode.tagName === "OPTGROUP" ? o2.parentNode.label : "";
-          if(g){ o2.textContent = o2.textContent + " [" + g + "]"; }
-        }
-        o2.title = o2.textContent;
-      }
-    });
-
-    box.querySelectorAll("input[data-f],select[data-f]").forEach(function(el){ farbEls[el.getAttribute("data-f")] = el; });
-    farbEls.linieDickeW = box.querySelector('[data-f="linieDicke"]').parentNode.querySelector(".dnx-farb-w");
-    farbEls.topHW = box.querySelector('[data-f="topH"]').parentNode.querySelector(".dnx-farb-w");
-    farbEls.fftHW = box.querySelector('[data-f="fftH"]').parentNode.querySelector(".dnx-farb-w");
-    farbEls.box = box;
-
-    /* Auf diesem Empfaenger werden change-Ereignisse an Auswahlfeldern von
-       fremden Listenern geschluckt (deshalb hat auch die Spektrum-Leiste einen
-       Nachzieh-Takt). Darum: das Feld wird ausgelesen, sobald sein Wert vom
-       zuletzt angewandten abweicht - zusaetzlich zu den normalen Ereignissen. */
-    function farbSetzen(k, v){
-      if(k === "wf"){
-        try{ localStorage.setItem(WF_KEY, v); }catch(e){}
-        try{ dnxWfApply(v); }catch(e2){}
-        if(uiHooks.flash){ uiHooks.flash("Wasserfall: " + dnxWfName(v)); }
-      } else if(k === "cmap3d" || k === "bg3d"){
-        var st3 = dnx3dHgLesen();
-        dnx3dFarbeSetzen(k === "cmap3d" ? v : (st3.cmap || "owrx"),
-                         k === "bg3d" ? v : (st3.bg || "Standard"));
-        if(uiHooks.flash){ uiHooks.flash(k === "cmap3d" ? ("3D-Palette: " + v) : ("3D-Hintergrund: " + v)); }
-      } else if(k === "pal" || k === "hg"){
-        var o = {};
-        o[k] = v;
-        try{ if(typeof window.__dnxSpecSet === "function"){ window.__dnxSpecSet(o); } }catch(e3){}
-        if(uiHooks.flash){ uiHooks.flash(k === "pal" ? ("Spektrum-Palette: " + v) : ("Spektrum-Hintergrund: " + v)); }
-      } else if(k === "linieFarbe"){
-        var r = dnxLinienLook(v, farbLesen().linieDicke, true);
-        if(uiHooks.flash){ uiHooks.flash("Linienfarbe " + r.farbe); }
-      } else if(k === "linieDicke"){
-        var r2 = dnxLinienLook(farbLesen().linieFarbe, v, true);
-        if(uiHooks.flash){ uiHooks.flash("Linienstärke " + r2.dicke + " px"); }
-      } else if(k === "topH"){
-        try{ var th = parseInt(v, 10) || 0; if(th > 0){ dnxTopHSetzen(th); } else { dnxTopHReset(); } }catch(e4){}
-        try{ dnxTopLinie(); }catch(e5){}
-      } else if(k === "fftH"){
-        try{ var fh = parseInt(v, 10) || 0; if(fh > 0){ dnxFftHSetzen(fh); } else { dnxFftHReset(); } }catch(e6){}
-        try{ dnxFftLinie(); }catch(e7){}
-      }
-      if(k === "topH"){ dnxHoehenUiSync("topH", dnxTopHGemerkt()); }
-      else if(k === "fftH"){ dnxHoehenUiSync("fftH", dnxFftHGemerkt()); }
-      else { farbLetzt[k] = String(v); }
-      /* v6.7: nur Streifen/Name nachziehen - NICHT alle Felder, sonst
-         koennte ein gerade gestellter Wert kurz zurueckspringen */
-      try{ farbStreifenSync(); }catch(eSu){}
-      /* nur die eigene Anzeige nachziehen - andere Felder nicht zuruecksetzen,
-         sonst wuerde der Takt gerade gestellte Werte wieder ueberschreiben */
-      if(k === "linieDicke" && farbEls.linieDickeW){ farbEls.linieDickeW.textContent = v + " px"; }
-    }
-    function wechsel(ev){
-      var el = ev.currentTarget;
-      farbSetzen(el.getAttribute("data-f"), el.value);
-    }
-    function takt(){
-      if(!document.body.contains(box)){ return; }
-      var felder = box.querySelectorAll("select,input");
-      for(var i = 0; i < felder.length; i++){
-        var k = felder[i].getAttribute("data-f");
-        if(!k || farbLetzt[k] === undefined){ continue; }
-        if(String(felder[i].value) !== farbLetzt[k]){ farbSetzen(k, felder[i].value); }
-      }
-    }
-    if(!box.__dnxTakt){ box.__dnxTakt = setInterval(takt, 500); }
-    box.querySelectorAll("select[data-f]").forEach(function(el){ el.addEventListener("change", wechsel); });
-    box.querySelectorAll('input[type="range"][data-f]').forEach(function(el){
-      el.addEventListener("input", wechsel);
-      el.addEventListener("change", wechsel);
-    });
-    box.querySelector('[data-f="linieFarbe"]').addEventListener("input", wechsel);
-    box.querySelector('[data-f="linieFarbe"]').addEventListener("change", wechsel);
-
-    function farbStdKlick(){
-      dnxLinienLook(farbLesen().linieFarbe, farbLesen().linieDicke, true);
-      if(typeof dnxStdSenden === "function"){
-        dnxStdSenden(true);
-      } else if(uiHooks.flash){
-        uiHooks.flash("Teilen-Dienst nicht erreichbar");
-      }
-    }
-    function farbZurueckKlick(){
-      try{ localStorage.setItem(WF_KEY, DNX_WF_STD); }catch(e){}
-      try{ dnxWfApply(DNX_WF_STD); }catch(e2){}
-      dnx3dFarbeSetzen("owrx", "Standard");
-      try{ if(typeof window.__dnxSpecSet === "function"){ window.__dnxSpecSet({ pal: "Original", hg: "Standard" }); } }catch(e3){}
-      dnxLinienLook(FARB_STD.linieFarbe, FARB_STD.linieDicke, true);
-      try{ dnxFftHReset(); }catch(e4){}
-      try{ dnxTopHReset(); }catch(e5){}
-      farbSyncUi();
-      if(uiHooks.flash){ uiHooks.flash("Farben zurueckgesetzt"); }
-    }
-    /* Klicks werden auf dieser Seite in der Capture-Phase abgefangen, bevor sie
-       den Knopf erreichen - darum hier auf Fenster-Ebene abfangen (laeuft zuerst). */
-    window.__dnxFarbAktionen = { std: farbStdKlick, zurueck: farbZurueckKlick };
-    if(!window.__dnxFarbKlickHook){
-      window.__dnxFarbKlickHook = 1;
-      var klickPruefen = function(ev){
-        var t = ev.target;
-        if(!t || !t.closest){ return; }
-        var frei = t.closest("[data-a]");
-        if(!frei){ return; }
-        var box2 = document.getElementById("dnx-farben-box");
-        var a = frei.getAttribute("data-a");
-        if(!box2){ return; }
-        if(a === "std"){
-          if(frei !== document.getElementById("dnx-share-std") || !dnxStdUiErlaubt()){ return; }
-        } else if(a !== "zurueck" || !box2.contains(frei)){ return; }
-        var jetzt = Date.now();
-        if(box2.__dnxKlick && box2.__dnxKlickArt === a && (jetzt - box2.__dnxKlick) < 900){ return; }
-        box2.__dnxKlick = jetzt;
-        box2.__dnxKlickArt = a;
-        var f = window.__dnxFarbAktionen && window.__dnxFarbAktionen[a];
-        if(f){ try{ f(); }catch(e){ console.warn("Farben-Knopf", e); } }
-      };
-      window.addEventListener("pointerup", klickPruefen, true);
-      window.addEventListener("click", klickPruefen, true);
-    }
-
-    box.querySelector('[data-a="zurueck"]').addEventListener("click", function(){
-      try{ localStorage.setItem(WF_KEY, DNX_WF_STD); }catch(e){}
-      try{ dnxWfApply(DNX_WF_STD); }catch(e2){}
-      dnx3dFarbeSetzen("owrx", "Standard");
-      try{ if(typeof window.__dnxSpecSet === "function"){ window.__dnxSpecSet({ pal: "Original", hg: "Standard" }); } }catch(e3){}
-      dnxLinienLook(FARB_STD.linieFarbe, FARB_STD.linieDicke, true);
-      try{ dnxFftHReset(); }catch(e4){}
-      try{ dnxTopHReset(); }catch(e5){}
-      farbSyncUi();
-      if(uiHooks.flash){ uiHooks.flash("Farben zurueckgesetzt"); }
-    });
-
-    einhaengen(box);
-    /* kleine Lesehilfe zum Pruefen (aendert nichts) */
-    try{ window.__dnxFarbStreifen = farbStreifenCss; window.__dnxFarbJetzt = farbJetztText; }catch(eDbg){}
-    farbSyncUi();
-    return true;
-  }
-  try{
-    window.dnxFarben = {
-      bauen: farbBlockBauen,
-      stand: farbStand,
-      anwenden: farbAnwenden,
-      linien: dnxLinienLook,
-      sync: farbSyncUi
-    };
-  }catch(eFB){}
-
-  try{ window.__dnxStylerBau = buildUi; }catch(eBau){}
-  window.dnxStyler = { apply: apply, reset: reset, fftHoehe: dnxFftHSetzen, fftLinie: dnxFftLinie, topHoehe: dnxTopHSetzen, topLinie: dnxTopLinie, presets: PRESETS, open: toggleUi, beep: beep, wfApply: dnxWfApply, wfId: dnxWfId, stdSenden: dnxStdSenden, farben: function(){ return farbStand(); }, farbenAnwenden: farbAnwenden, linienLook: dnxLinienLook, diag: dnxDiag, paletteNeu: dnxPalNeu, pillenEffekte: PFX, pillenEffektId: pfxId, teilen: shareInfo, pfxStylesheet: dnxPfxSheet, zeit: window.dnxZeit };
+  window.dnxStyler = { apply: apply, reset: reset, fftHoehe: dnxFftHSetzen, fftLinie: dnxFftLinie, topHoehe: dnxTopHSetzen, topLinie: dnxTopLinie, presets: PRESETS, open: toggleUi, beep: beep, diag: dnxDiag, paletteNeu: dnxPalNeu, pillenEffekte: PFX, pillenEffektId: pfxId, teilen: shareInfo, pfxStylesheet: dnxPfxSheet, zeit: window.dnxZeit };
 })();
 
 /* DNX_SOFORT_SYNC_START */
@@ -18946,10 +14146,10 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
   "use strict";
   if(window.__dnxVersWache){ return; }
   window.__dnxVersWache = true;
-  var FASSUNG = "v4.54";
+  var FASSUNG = "v4.17";
   var STAND = "/static/plugins/receiver/dnx_stand.txt";
   var INIT = "/static/plugins/receiver/init.js";
-  var GROESSE = "0000616252";          /* Bytegroesse dieser Datei, vom Bau eingesetzt */
+  var GROESSE = "0000614560";          /* Bytegroesse dieser Datei, vom Bau eingesetzt */
   var SCHLUESSEL = "dnx.styler.laedt.";
   var MAX = 3;
 
@@ -19016,7 +14216,7 @@ window.DNXScannerManager={open, quelle:()=>LUPE.wf, ordnung:()=>FM_VORN,
     var s=document.createElement("script");
     s.id="dnx-airmarine-3d-loader";
     s.async=true;
-    s.src="/static/plugins/receiver/dnx_airmarine_3d/dnx_airmarine_3d.js?v=4.50";
+    s.src="/static/plugins/receiver/dnx_airmarine_3d/dnx_airmarine_3d.js?v=4.17";
     s.onerror=function(){try{console.warn("[DNX] Lokales AIS/ADS-B-3D-Modul konnte nicht geladen werden");}catch(e){}};
     (document.head||document.documentElement).appendChild(s);
   }

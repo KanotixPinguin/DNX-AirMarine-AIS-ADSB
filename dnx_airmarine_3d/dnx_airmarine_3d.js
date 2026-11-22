@@ -8,7 +8,7 @@
   if (window.__dnxAirMarine3DInstalled) return;
   window.__dnxAirMarine3DInstalled = true;
 
-  var VERSION = "4.54";
+  var VERSION = "4.17";
   var APP_ROOT = "/static/plugins/receiver/dnx_airmarine_3d";
   var CESIUM_ROOT = "/static/plugins/receiver/dnx_weather/vendor/cesium/";
   var CESIUM_JS = CESIUM_ROOT + "Cesium.js";
@@ -59,28 +59,23 @@
     tug: "ship-tug.glb", fishing: "ship-fishing.glb"
   };
   var AIRCRAFT_REALISTIC_MODEL_FILES = {
-    bb_a319: "bluebell-neutral/details-v444/A319.glb", bb_a320: "bluebell-neutral/details-v444/A320.glb", bb_a321: "bluebell-neutral/details-v444/A321.glb", bb_a333: "bluebell-neutral/details-v444/A333.glb", bb_a388: "bluebell-neutral/details-v444/A388.glb", bb_b738: "bluebell-neutral/details-v444/B738.glb", bb_b744: "bluebell-neutral/details-v444/B744.glb", bb_b772: "bluebell-neutral/details-v444/B772.glb",
     a320: "A320_nologo.glb", a350: "A350_nologo.glb", a380: "A380_nologo.glb",
     b737: "B737_nologo.glb", b787: "B787_nologo.glb", evtol: "EVTOL_nologo.glb",
-    drone: "classes-v446/drone.glb", helicopter: "classes-v446/helicopter.glb", glider: "classes-v446/glider.glb", f15: "f15.glb",
-    single_prop: "classes-v446/single_prop.glb", twin_prop: "classes-v446/twin_prop.glb", balloon: "classes-v446/balloon.glb"
+    drone: "drone_nologo.glb", helicopter: "helicopter.glb", glider: "glider.glb", f15: "f15.glb"
   };
   var AIRCRAFT_MODEL_SCALES = {
-    bb_a319: 1, bb_a320: 1, bb_a321: 1, bb_a333: 1, bb_a388: 1, bb_b738: 1, bb_b744: 1, bb_b772: 1,
     a320: 1, a350: 1, a380: 0.42, b737: 1, b787: 1,
-    evtol: 5, drone: 1, helicopter: 1, glider: 1, f15: 1, single_prop: 1, twin_prop: 1, balloon: 1
+    evtol: 5, drone: 1, helicopter: 1, glider: 1, f15: 1
   };
   /* amvlab aircraft are +X-forward; the SDRangel glTFs are +Z-forward. */
   var AIRCRAFT_MODEL_FORWARD_AXES = {
-    bb_a319: "Z", bb_a320: "Z", bb_a321: "Z", bb_a333: "Z", bb_a388: "Z", bb_b738: "Z", bb_b744: "Z", bb_b772: "Z",
     a320: "X", a350: "X", a380: "X", b737: "X", b787: "X",
-    evtol: "X", drone: "Z", helicopter: "Z", glider: "Z", f15: "Z", single_prop: "Z", twin_prop: "Z", balloon: "Z"
+    evtol: "X", drone: "X", helicopter: "Z", glider: "Z", f15: "Z"
   };
   /* Nominal longest post-transform dimensions (metres), used to set camera range. */
   var AIRCRAFT_MODEL_LENGTHS = {
-    bb_a319: 34.042, bb_a320: 37.546, bb_a321: 44.48, bb_a333: 63.532, bb_a388: 79.592, bb_b738: 39.572, bb_b744: 70.18, bb_b772: 64.254,
     a320: 38, a350: 67, a380: 80, b737: 38, b787: 58,
-    evtol: 7, drone: 1, helicopter: 20, glider: 17, f15: 22, single_prop: 11, twin_prop: 13, balloon: 14
+    evtol: 7, drone: 1, helicopter: 20, glider: 17, f15: 22
   };
   var AIS_DEFAULT_BEAM_RATIO = {
     cargo: 0.17, tanker: 0.17, passenger: 0.16, tug: 0.31, fishing: 0.25,
@@ -502,85 +497,13 @@
     return "tug";
   }
 
-  // Only explicit existing type metadata. No callsign/operator/registration guess,
-  // no photo scan, no external database. NEO/MAX variants are NOT these airframes.
-  var TYPE_DB_COMMIT = "e7ff3f1474334b3f00d50a6661ef1c16754721a5";
-  var TYPE_DB_CACHE = Object.create(null);
-  function lookupAircraftType(record) {
-    if (!record || !window.fetch) return;
-    var hex = String(record.icao || record.id || "").toUpperCase();
-    if (!/^[0-9A-F]{6}$/.test(hex)) return;
-    var registration = aircraftRegistration(record).toUpperCase().replace(/[^A-Z0-9]/g, "");
-    var requestKey = hex + "|" + registration;
-    if (record.__typeLookupDone === requestKey || record.__typeLookupPending === requestKey) return;
-    var prefix = hex.slice(0, 2), cache = TYPE_DB_CACHE[prefix];
-    if (cache && cache.failedUntil && now() < cache.failedUntil) return;
-    if (!cache || cache.failedUntil) {
-      cache = TYPE_DB_CACHE[prefix] = {};
-      cache.promise = window.fetch(APP_ROOT + "/models/adsb-realistic/bluebell-neutral/type-db/" + prefix +
-        ".json?v=" + TYPE_DB_COMMIT.slice(0,12), { credentials: "same-origin", cache: "force-cache" })
-        .then(function (response) { if (!response.ok) throw new Error("local type database unavailable"); return response.json(); })
-        .then(function (data) {
-          if (!data || data.schema !== 1 || data.commit !== TYPE_DB_COMMIT || !data.aircraft) throw new Error("wrong local type database version");
-          return data.aircraft;
-        }).catch(function () { cache.failedUntil = now() + 30000; return null; });
-    }
-    record.__typeLookupPending = requestKey;
-    cache.promise.then(function (rows) {
-      record.__typeLookupPending = null;
-      if (!rows || RECORDS.adsb[record.id] !== record) return;
-      // A registry change while awaiting the local shard invalidates this reply.
-      if (aircraftRegistration(record).toUpperCase().replace(/[^A-Z0-9]/g, "") !== registration) return;
-      var entry = rows[hex.slice(2)];
-      record.modelType = "";
-      record.modelTypeDbRegistration = "";
-      record.modelTypeStatus = "kein Datenbanktreffer";
-      if (entry && /^[A-Z0-9]{2,4}$/.test(entry[1] || "")) {
-        var dbRegistration = String(entry[0] || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
-        if (registration && dbRegistration && registration !== dbRegistration) {
-          record.modelTypeStatus = "Registrierung weicht von Datenbank ab · keine Typübernahme";
-        } else {
-          record.modelType = entry[1];
-          record.modelTypeDbRegistration = entry[0] || "";
-          record.modelTypeStatus = "Mictronics · ODC-By · Stand 18.10.2026";
-        }
-      }
-      record.__typeLookupDone = requestKey;
-      // Display-only metadata: do NOT refresh lastSeen/lastPositionAt or raw reports.
-      scheduleSync("adsb");
-    });
-  }
-
-  function exactAircraftType(record) {
-    if (!record) return "";
-    var text = safeText(record.aircraft || record.modelType || record.type || record.category).trim().toUpperCase();
-    text = text.replace(/^(AIRBUS|BOEING)\s+/, "");
-    if (/^(A319|A320|A321|A333|A388|B738|B744|B772)$/.test(text)) return text;
-    var match = /^(A319|A320|A321)-[12][0-9]{2}$/.exec(text);
-    if (match) return match[1];
-    var aliases = {"A330-300":"A333","A380-800":"A388","737-800":"B738","B737-800":"B738",
-      "747-400":"B744","B747-400":"B744","777-200":"B772","B777-200":"B772"};
-    return aliases[text] || "";
-  }
-
-  function aircraftModelNotice(record) {
-    var type = exactAircraftType(record);
-    if (type) return type + " · neutrales Typmodell · keine Airline-Lackierung";
-    var key = adsbModelAssetKey(record);
-    var labels = {single_prop:"Einmotoriges Propellerflugzeug", twin_prop:"Zweimotoriges Propellerflugzeug",
-      helicopter:"Drehflügler/Hubschrauber", drone:"Unbemanntes Luftfahrzeug", glider:"Segelflugzeug", balloon:"Ballon"};
-    return labels[key] ? labels[key] + " · eigenes schematisches Klassenmodell · keine exakte Bauform" : "Klassen-/Ersatzmodell · Typ nicht im neutralen Bestand";
-  }
-
   function adsbModelAssetKey(record) {
     if (!record) return null;
-    var exact = exactAircraftType(record);
-    if (exact) return "bb_" + exact.toLowerCase();
-    var type = safeText(record.aircraft || record.modelType || record.type).toUpperCase().replace(/[^A-Z0-9]/g, "");
+    var type = safeText(record.aircraft || record.type).toUpperCase().replace(/[^A-Z0-9]/g, "");
     var category = safeText(record.category).toUpperCase().replace(/[^A-Z0-9]/g, "");
     /* Some ADS-B-LIST producers put the ICAO type code in `type`/`category` instead of `aircraft`. */
     if (!type && /^[A-Z0-9]{3,8}$/.test(category)) type = category;
-    if (/^(DRON|DRONE|UAV|UAS|MAVIC|DJI)/.test(type)) return "drone";
+    if (/^(DRON|DRONE|UAV|UAS|MAVIC|DJI)/.test(type) || /^D[0-9]/.test(category)) return "drone";
     if (/EVTOL|VTOL/.test(type)) return "evtol";
     if (/^(A388|A380)/.test(type)) return "a380";
     if (/^(A35|A359|A35K|A350)/.test(type) || /^A3[34]/.test(type)) return "a350";
@@ -588,17 +511,8 @@
     if (/^(A318|A319|A320|A321|A20N|A21N|A19N|A31|A32)/.test(type)) return "a320";
     if (/^(B736|B737|B738|B739|B37M|B38M|B39M|B73)/.test(type)) return "b737";
     if (/^(F15|F15E|F15K)/.test(type)) return "f15";
-    if (/^(ASK|ASW|DG[0-9]|LS[0-9]|SZD|GLID|GLIM|G102|G103)/.test(type)) return "glider";
-    if (/^(A109|A119|A139|A169|A189|AS[0-9]{2,3}|EC[0-9]{2,3}|H1[0-9]{2}|R22|R44|R66|B0[6-9]T?|B105|B212|B214|B222|B230|B407|B412|B427|B429|B430|B47|S7[0-9]|S92|NH90|UHEL)$/.test(type)) return "helicopter";
-    // Explicit common type facts, not an inference from weight or callsign.
-    if (/^(C150|C152|C162|C170|C172|C175|C177|C180|C182|C185|C206|C207|C208|C210|PA18|PA28|P28A|P28B|P28R|P28T|P32R|P32T|SR20|SR22|DA20|DA40|DV20|AA5|RV7|RV8|RV9)$/.test(type)) return "single_prop";
-    if (/^(C303|C310|C335|C340|C402|C404|C414|C421|C425|C441|PA23|PA27|PA30|PA31|PA34|PA44|DA42|DA62|BE20|BE30|BE55|BE58|BE60|BE76|BE90|BE99|B350|AT43|AT45|AT46|AT72|AT75|AT76|DH8A|DH8B|DH8C|DH8D)$/.test(type)) return "twin_prop";
-    if (type === "BALL") return "balloon";
-    // DO-260 category is not an engine-count database. B2 also includes
-    // airships; A1/B4 cannot establish a propeller count. Never guess these.
-    if (category === "A7") return "helicopter";
-    if (category === "B1") return "glider";
-    if (category === "B6") return "drone";
+    if (/^(ASK|ASW|DG[0-9]|LS[0-9]|SZD|GLID|G102|G103)/.test(type)) return "glider";
+    if (/^(A10[9]|A11[9]|A13[9]|A16[9]|A18[9]|AS[0-9]|EC[0-9]|H1[0-9]{2}|R2[24]|R66|B0[6-9]|B4[0-9]{2}|S7[0-9]|S92|NH90)/.test(type)) return "helicopter";
     return null;
   }
 
@@ -740,51 +654,32 @@
         id: id, kind: "adsb", track: [], reports: 0,
         lastSeen: 0, lastPositionAt: 0
       });
-      var receivedAt = now();
-      var sourceAt = asNumber(entry.timestamp);
-      if (sourceAt !== null) sourceAt = sourceAt < 100000000000 ? sourceAt * 1000 : sourceAt;
-      else sourceAt = receivedAt - Math.max(0, asNumber(entry.seen) || 0) * 1000;
-      sourceAt = Math.min(receivedAt, sourceAt);
-      // A periodic list is a cache snapshot, not a fresh aircraft report.
-      if (record.__sourceAt && sourceAt < record.__sourceAt) continue;
-      if (!record.__sourceAt || sourceAt > record.__sourceAt) record.reports++;
-      record.__sourceAt = sourceAt;
-      record.lastSeen = Math.max(record.lastSeen || 0, sourceAt);
+      record.reports++;
+      record.lastSeen = now();
       record.icao = id;
       record.flight = safeText(entry.flight || entry.callsign || record.flight || "");
-      var tail = aircraftRegistration({aircraft:entry.aircraft});
-      record.aircraft = safeText(entry.aircraft_type || entry.type_designator || (tail ? "" : entry.aircraft) || record.aircraft || "");
-      record.registration = safeText(entry.registration || entry.reg || entry.r || entry.tail || tail || record.registration || "");
+      record.aircraft = safeText(entry.aircraft || record.aircraft || "");
       record.squawk = safeText(entry.squawk || record.squawk || "");
       record.emergency = safeText(entry.emergency || record.emergency || "");
       record.category = safeText(entry.category || entry.type || record.category || "");
       record.altitudeFt = asNumber(entry.altitude, entry.altitude_ft, entry.alt_baro, entry.alt, record.altitudeFt);
       record.geomAltitudeFt = asNumber(entry.altitude_geom, entry.alt_geom, entry.altitude_geometric, record.geomAltitudeFt);
       record.navAltitudeFt = asNumber(entry.nav_altitude_mcp, entry.nav_altitude_fms, entry.nav_altitude, record.navAltitudeFt);
-      record.speedKn = asNumber(entry.speed, entry.speed_knots, entry.gs, entry.groundspeed, entry.ground_speed, record.speedKn);
-      record.courseDeg = asNumber(entry.course, entry.track, entry.heading, entry.course_deg, entry.track_deg, record.courseDeg);
+      record.speedKn = asNumber(entry.speed, entry.speed_knots, entry.gs, record.speedKn);
+      record.courseDeg = asNumber(entry.course, entry.track, entry.heading, record.courseDeg);
       record.vspeedFpm = asNumber(entry.vspeed, entry.vertical_rate, entry.baro_rate, record.vspeedFpm);
-      record.messageCount = asNumber(entry.messages, entry.message_count, entry.msgs, record.messageCount);
+      record.messageCount = asNumber(entry.messages, entry.message_count, record.messageCount);
       record.rssi = asNumber(entry.rssi, entry.signal, record.rssi);
       record.seenSec = asNumber(entry.seen, entry.last_seen, record.seenSec);
       record.seenPosSec = asNumber(entry.seen_pos, entry.position_age, record.seenPosSec);
       record.source = safeText(entry.source || entry.receiver || record.source || "");
       record.freq = safeText(entry.freq || entry.frequency || record.freq || "");
-      lookupAircraftType(record);
       var lat = asNumber(entry.lat, entry.latitude), lon = asNumber(entry.lon, entry.longitude);
       if (validPosition(lat, lon)) {
-        var changed = record.lat !== lat || record.lon !== lon;
-        var explicitAge = asNumber(entry.seen_pos, entry.position_age);
-        var positionAt = explicitAge !== null ? receivedAt - Math.max(0, explicitAge) * 1000 : sourceAt;
-        // v4.45: never replace a position by an older fix, even if other
-        // fields in the snapshot are newer. Telemetry remains unmodified.
-        if (record.lastPositionAt && positionAt < record.lastPositionAt - 1) { updated++; continue; }
         record.lat = lat;
         record.lon = lon;
         record.altitudeM = Math.max(0, (record.altitudeFt || 0) * 0.3048);
-        if (!record.lastPositionAt || changed) record.lastPositionAt = positionAt;
-        // Without position-age metadata, unchanged coordinates are not a new fix.
-        record.__positionAgeSec = Math.max(0, (receivedAt - record.lastPositionAt) / 1000);
+        record.lastPositionAt = now();
         updateMotion2d(record);
         appendTrack(record, lat, lon, record.altitudeM, 90);
       }
@@ -951,16 +846,6 @@
     }
     rec.follow = null;
     rec.pendingFollowId = null;
-    if (rec.nativeFocusBoundsRestore) { rec.nativeFocusBoundsRestore(); rec.nativeFocusBoundsRestore = null; }
-    if (rec.selectionRenderRemove) { try { rec.selectionRenderRemove(); } catch (e) {} rec.selectionRenderRemove = null; }
-    if (rec.viewer && rec.viewer.scene && rec.viewer.scene.canvas) {
-      var selectionCanvas = rec.viewer.scene.canvas;
-      if (rec.selectionClickHandler) selectionCanvas.removeEventListener("click", rec.selectionClickHandler);
-      if (rec.selectionDoubleHandler) selectionCanvas.removeEventListener("dblclick", rec.selectionDoubleHandler);
-      if (rec.selectionPointerHandler) selectionCanvas.removeEventListener("pointerdown", rec.selectionPointerHandler, true);
-    }
-    rec.selectionClickHandler = null; rec.selectionPointerHandler = null;
-    rec.selectionDoubleHandler = null; rec.nativeTargets = null; rec.__nativeIndicatorKey = null;
     if (rec.followInputHandlers && rec.viewer && rec.viewer.scene && rec.viewer.scene.canvas) {
       var followCanvas = rec.viewer.scene.canvas;
       Object.keys(rec.followInputHandlers).forEach(function (eventName) {
@@ -1022,7 +907,7 @@
           baseLayerPicker: false,
           navigationHelpButton: false,
           infoBox: false,
-          selectionIndicator: true,
+          selectionIndicator: false,
           terrainProvider: new C.EllipsoidTerrainProvider(),
           imageryProvider: new C.UrlTemplateImageryProvider({
             url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
@@ -1034,19 +919,8 @@
         });
         /* The clock must animate: sampled ADS-B positions are evaluated at
            clock.currentTime, and requestRenderMode re-renders on time change. */
-        try {
-          rec.viewer.allowDataSourcesToSuspendAnimation = false;
-          rec.viewer.clock.canAnimate = true;
-          rec.viewer.clock.shouldAnimate = true;
-        } catch (e) {}
-        installNativeFocusBounds(rec);
+        try { rec.viewer.clock.shouldAnimate = true; } catch (e) {}
         try { if (window.Cesium && window.Cesium.Ion && window.DNX_CESIUM_ION_TOKEN) window.Cesium.Ion.defaultAccessToken = window.DNX_CESIUM_ION_TOKEN; } catch (e) {}
-        // Native Cesium widget owns selection placement; our existing photo/link
-        // panel supplies the information UI without a second competing InfoBox.
-        if (rec.viewer.screenSpaceEventHandler && C.ScreenSpaceEventType) {
-          rec.viewer.screenSpaceEventHandler.removeInputAction(C.ScreenSpaceEventType.LEFT_CLICK);
-          rec.viewer.screenSpaceEventHandler.removeInputAction(C.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
-        }
         installMotionTicker(rec);
         applyBaseMap3D(rec);
         applyDisplayPrefs(rec);
@@ -1063,27 +937,6 @@
           if (target) showContextMenu(rec, target.kind, target.id, event.clientX, event.clientY);
         };
         canvas.addEventListener("contextmenu", rec.canvasContextHandler);
-        rec.selectionPointerHandler = function (event) { rec.__selectionDown = { x: event.clientX, y: event.clientY }; };
-        rec.selectionClickHandler = function (event) {
-          if (event.button !== 0) return;
-          var down = rec.__selectionDown;
-          if (down && Math.hypot(event.clientX - down.x, event.clientY - down.y) > 5) return;
-          var rect = canvas.getBoundingClientRect();
-          var target = pickTrafficTarget(rec, new C.Cartesian2(event.clientX - rect.left, event.clientY - rect.top));
-          selectTrafficTarget(rec, target && target.kind, target && target.id);
-        };
-        canvas.addEventListener("pointerdown", rec.selectionPointerHandler, true);
-        canvas.addEventListener("click", rec.selectionClickHandler);
-        rec.selectionDoubleHandler = function (event) {
-          if (event.button !== 0) return;
-          var rect = canvas.getBoundingClientRect();
-          var target = pickTrafficTarget(rec, new C.Cartesian2(event.clientX - rect.left, event.clientY - rect.top));
-          if (!target) return;
-          selectTrafficTarget(rec, target.kind, target.id);
-          startFollowTarget(rec, target.id);
-        };
-        canvas.addEventListener("dblclick", rec.selectionDoubleHandler);
-        rec.selectionRenderRemove = rec.viewer.scene.postRender.addEventListener(function () { updateSelectionFrame(rec); updateTrafficLabels(rec); });
         installFollowInput(rec);
         installTrafficZoom(rec);
         try {
@@ -1214,11 +1067,6 @@
     if (select) select.value = rec.prefs.baseMap;
     applyBaseMap2D(rec);
     applyBaseMap3D(rec);
-    Object.keys(rec.map2dTracks || {}).forEach(function (id) {
-      styleTrack2D(rec.map2dTracks[id], rec);
-    });
-    if (rec.map2d) syncMap2D(rec);
-    refreshAircraftContrast(rec);
   }
 
   function setMapError(rec, text) {
@@ -1324,119 +1172,6 @@
     if (modelKind === "station" || modelKind === "aid") return 1;
     var base = MODEL_BASE_LENGTH[modelKind] || 75;
     return record.lengthM ? clamp(Number(record.lengthM) / base, 0.4, 3) : 1;
-  }
-
-  function applyAircraftContrast(rec, model, record, C) {
-    if (!model || !C || !C.Color || !rec) return;
-    var colors = trackContrast2D(rec.prefs && rec.prefs.baseMap);
-    var locked = !!(record && rec.follow && !rec.follow.native && followTargetKind(rec) === "adsb" && rec.follow.id === String(record.id));
-    var key = "material-v443:" + colors.color + (locked ? ":locked" : ":normal");
-    if (model.__dnxContrastKey === key) return;
-    model.color = C.Color.fromCssColorString("#ffffff");
-    /* Preserve source material and lighting; contrast belongs to the edge,
-       not an 88-percent flat tint that erases the aircraft's shape. */
-    if (C.ColorBlendMode) model.colorBlendMode = C.ColorBlendMode.MIX;
-    model.colorBlendAmount = colors.color === "#ffffff" ? 0.18 : 0.08;
-    model.silhouetteColor = C.Color.fromCssColorString(locked ? "#ffd24a" : colors.color);
-    model.silhouetteSize = locked ? 3 : 1.5;
-    model.__dnxContrastKey = key;
-  }
-  function refreshAircraftContrast(rec) {
-    var C = window.Cesium;
-    if (!rec || !C) return;
-    Object.keys(rec.aircraftModels || {}).forEach(function (id) {
-      var entry = rec.aircraftModels[id];
-      if (entry && entry.model) applyAircraftContrast(rec, entry.model, RECORDS.adsb[id.replace(/^adsb-/, "")], C);
-    });
-    Object.keys(rec.entities || {}).forEach(function (id) {
-      if (id.indexOf("adsb-") !== 0) return;
-      var entity = rec.entities[id];
-      if (entity && entity.model) applyAircraftContrast(rec, entity.model, RECORDS.adsb[id.slice(5)], C);
-      if (entity && entity.polyline) {
-        var colors = trackColors(rec);
-        var key = colors.color + colors.outline;
-        if (entity.__trackContrastKey !== key) {
-          entity.polyline.material = cesiumTrackMaterial("adsb", C, rec);
-          entity.polyline.width = 7;
-          entity.__trackContrastKey = key;
-        }
-      }
-    });
-    if (rec.viewer && rec.viewer.scene) rec.viewer.scene.requestRender();
-  }
-
-  function aircraftSizeFactor(rec) {
-    var value = Number(rec && rec.prefs && rec.prefs.aircraftSize) || 1;
-    return [1, 1.5, 2, 3].indexOf(value) >= 0 ? value : 1;
-  }
-  function aircraftTargetZoom(rec, record) {
-    return Number(rec && rec.aircraftTargetZoom && record && rec.aircraftTargetZoom[String(record.id)]) || 1;
-  }
-
-  // A selected aircraft owns the wheel everywhere on this canvas. Change ONLY
-  // its visual scale: no camera/frustum/terrain zoom, no other aircraft scaling.
-  function zoomSelectedAircraft(rec, event) {
-    var selected = rec && rec.selection;
-    if (!selected || selected.kind !== "adsb") return false;
-    event.preventDefault(); event.stopPropagation();
-    if (event.stopImmediatePropagation) event.stopImmediatePropagation();
-    var record = RECORDS.adsb[selected.id];
-    if (!record) return true; // stale selection must not leak a terrain zoom
-    var delta = Number(event.deltaY);
-    if (!isFinite(delta)) return true;
-    if (event.deltaMode === 1) delta *= 16;
-    else if (event.deltaMode === 2) delta *= (rec.viewer.scene.canvas.clientHeight || 800);
-    rec.aircraftTargetZoom = rec.aircraftTargetZoom || Object.create(null);
-    rec.aircraftTargetZoom[String(selected.id)] = clamp(aircraftTargetZoom(rec, record) *
-      Math.exp(-clamp(delta, -1200, 1200) * 0.0015), 0.1, 20);
-    var factor = aircraftSizeFactor(rec) * aircraftTargetZoom(rec, record);
-    var key = "adsb-" + selected.id;
-    var entry = rec.aircraftModels && rec.aircraftModels[key];
-    if (entry && entry.model) {
-      entry.model.modelMatrix = aircraftModelMatrix(rec, record, window.Cesium,
-        livePositionFor(rec, "adsb", record, window.Cesium));
-      entry.model.minimumPixelSize = 50 * factor;
-    }
-    var entity = rec.entities && rec.entities[key];
-    if (entity && entity.model) {
-      entity.model.scale = 1.25 * factor;
-      entity.model.minimumPixelSize = 50 * factor;
-    }
-    try { rec.viewer.scene.requestRender(); } catch (e) {}
-    return true;
-  }
-
-  function aircraftDistanceZoom(meters) {
-    return meters <= 100 ? 17 : meters <= 250 ? 16 : meters <= 500 ? 15 : meters <= 1000 ? 14 : 12;
-  }
-  function setAircraftSize(rec, value) {
-    if ([1, 1.5, 2, 3].indexOf(Number(value)) < 0) return;
-    rec.prefs.aircraftSize = Number(value);
-    savePrefs(rec);
-    syncMap2D(rec); syncViewer(rec);
-  }
-  function setAircraftDistance(rec, id, value) {
-    var meters = Number(value);
-    if ([100, 250, 500, 1000, 3000].indexOf(meters) < 0) return;
-    var record = RECORDS.adsb[id];
-    if (!record) return;
-    rec.prefs.aircraftDistance = meters;
-    savePrefs(rec);
-    var ll = extrapolate2d(record);
-    if (rec.map2d) rec.map2d.setView([ll.lat, ll.lon], aircraftDistanceZoom(meters), { animate: true });
-    if (!rec.viewer || !window.Cesium) return;
-    var C = window.Cesium;
-    if (rec.follow && rec.follow.id === String(id) && followTargetKind(rec) === "adsb") {
-      rec.follow.range = Math.max(0.1, (meters - 12) / aircraftModelLength(record));
-      updateFollowCamera(rec, record, 0);
-    } else {
-      if (rec.follow) stopFollow(rec, false);
-      var pos = livePositionFor(rec, "adsb", record, C);
-      rec.viewer.camera.flyToBoundingSphere(new C.BoundingSphere(pos, 1), {
-        duration: 0.6,
-        offset: new C.HeadingPitchRange(C.Math.toRadians(headingFor("adsb", record)), C.Math.toRadians(-25), meters)
-      });
-    }
   }
 
   function aircraftModelLength(record) {
@@ -1644,7 +1379,7 @@
     /* Cesium's per-model forwardAxis correction maps +X or +Z source assets into this +X-forward frame. */
     var hpr = new C.HeadingPitchRoll(C.Math.toRadians(heading - 90), pitch, 0);
     var frame = C.Transforms.headingPitchRollToFixedFrame(position, hpr, C.Ellipsoid.WGS84);
-    var scale = aircraftModelScale(record) * aircraftSizeFactor(rec) * aircraftTargetZoom(rec, record);
+    var scale = aircraftModelScale(record);
     return C.Matrix4.multiplyByScale(frame,
       new C.Cartesian3(scale, scale, scale), new C.Matrix4());
   }
@@ -1665,16 +1400,13 @@
     var C = window.Cesium;
     entity.model = {
       uri: AIRCRAFT_MODEL,
-      scale: 1.25 * aircraftSizeFactor(rec) * aircraftTargetZoom(rec, record),
-      minimumPixelSize: 50 * aircraftSizeFactor(rec) * aircraftTargetZoom(rec, record),
-      maximumScale: 12000,
+      scale: 1.25,
       runAnimations: false,
       shadows: C.ShadowMode.ENABLED,
       imageBasedLightingFactor: new C.Cartesian2(1.15, 1.0),
       color: C.Color.WHITE,
       silhouetteSize: 0
     };
-    applyAircraftContrast(rec, entity.model, record, C);
     entity.orientation = displayOrientation(rec, "adsb", record, positionFor("adsb", record, C), C, true);
     if (entity.point) entity.point.show = true;
   }
@@ -1703,7 +1435,6 @@
       entry.modelMatrix = modelMatrix;
       if (entry.model) {
         entry.model.modelMatrix = modelMatrix;
-        entry.model.minimumPixelSize = 50 * aircraftSizeFactor(rec) * aircraftTargetZoom(rec, record);
         if (entity && entity.model) entity.model = undefined;
         if (entity && entity.point) entity.point.show = true;
       } else if (entry.failed && entity && !entity.model) {
@@ -1729,7 +1460,7 @@
         id: { id: id },
         upAxis: C.Axis.Y,
         forwardAxis: C.Axis[aircraftModelForwardAxis(record)] || C.Axis.X,
-        minimumPixelSize: 50 * aircraftSizeFactor(rec) * aircraftTargetZoom(rec, record),
+        minimumPixelSize: 50,
         maximumScale: 30000,
         shadows: C.ShadowMode.ENABLED,
         runAnimations: false
@@ -1753,7 +1484,6 @@
         model.modelMatrix = entry.modelMatrix;
         rec.viewer.scene.primitives.add(model);
         entry.model = model;
-        applyAircraftContrast(rec, model, record, C);
         entry.loading = false;
         var liveEntity = rec.entities[id];
         if (liveEntity) {
@@ -1828,49 +1558,11 @@
     if (!rec.prefs || !rec.prefs.tracks) return false;
     var mode = rec.prefs.groundTracks || "all";
     if (mode === "off") return false;
-    if (mode === "selected") {
-      var target = rec.selection || rec.follow;
-      return !!(target && target.id === String(record.id) && (!target.kind || target.kind === record.kind));
-    }
+    if (mode === "selected") return !!(rec.follow && rec.follow.id === String(record.id));
     return true;
   }
-  function trackDisplayPoints(record) {
-    var points = (record.track || []).slice();
-    if (!points.length && validPosition(record.lat, record.lon)) points.push({lat:record.lat,lon:record.lon,altitude:record.altitudeM || 0});
-    var display = extrapolate2d(record), last = points[points.length - 1];
-    if (last && (Math.abs(last.lat-display.lat)>0.00001 || Math.abs(last.lon-display.lon)>0.00001)) {
-      points.push({lat:display.lat,lon:display.lon,altitude:record.altitudeM || 0,predicted:true});
-    }
-    return points;
-  }
-  function trackColors(rec) {
-    var automatic = trackContrast2D(rec && rec.prefs && rec.prefs.baseMap);
-    var color = rec && rec.prefs && rec.prefs.trackColor;
-    if (!/^#[0-9a-f]{6}$/i.test(color || "")) return automatic;
-    var rgb=parseInt(color.slice(1),16);
-    var brightness=(((rgb>>16)&255)*299+((rgb>>8)&255)*587+(rgb&255)*114)/1000;
-    return {color:color,outline:brightness>145?"#101820":"#ffffff"};
-  }
-  function applyTrackSettings(rec) {
-    savePrefs(rec);
-    if (rec.map2d) syncMap2D(rec);
-    if (rec.viewer && window.Cesium) {
-      var C=window.Cesium,kind=rec.spec.key;
-      Object.keys(rec.entities || {}).forEach(function(id){
-        var record=(RECORDS[kind] || {})[id.replace(kind+"-","")],entity=rec.entities[id];
-        if (record && entity && entity.polyline) {
-          entity.polyline.positions=trackPositions(kind,record,C);
-          entity.polyline.show=trackShow(rec,record)&&trackDisplayPoints(record).length>=2;
-          entity.polyline.material=cesiumTrackMaterial(kind,C,rec);
-        }
-      });
-      rec.viewer.scene.requestRender();
-    }
-    var checkbox=rec.win && q('[data-am-option="tracks"]',rec.win);
-    if (checkbox) checkbox.checked=!!rec.prefs.tracks;
-  }
   function trackPositions(kind, record, C) {
-    var points = trackDisplayPoints(record);
+    var points = record.track || [];
     var prefsRec = WINDOWS[kind], prefs = prefsRec && prefsRec.prefs ? prefsRec.prefs : {};
     if ((Number(prefs.smoothWindow) || 0) > 0 && points.length >= Math.max(5, Number(prefs.smoothWindow) || 5)) {
       points = smoothTrackPoints(points, Number(prefs.smoothLambda) || 1);
@@ -1884,15 +1576,7 @@
     return result;
   }
 
-  function cesiumTrackMaterial(kind, C, rec) {
-    if ((kind === "adsb" || (rec && rec.prefs.trackColor && rec.prefs.trackColor !== "auto")) && C.PolylineOutlineMaterialProperty) {
-      var colors = trackColors(rec);
-      return new C.PolylineOutlineMaterialProperty({
-        color: C.Color.fromCssColorString(colors.color),
-        outlineColor: C.Color.fromCssColorString(colors.outline),
-        outlineWidth: 2
-      });
-    }
+  function cesiumTrackMaterial(kind, C) {
     return new C.PolylineGlowMaterialProperty({
       glowPower: 0.22,
       color: C.Color.fromCssColorString(trackColorCss(kind))
@@ -1950,14 +1634,6 @@
   }
 
   function livePositionFor(rec, kind, record, C) {
-    /* One display trajectory for Leaflet, visible GLBs and pursuit camera.
-       Do not depend on entity SampledPositionProperty evaluation for primitives. */
-    if (record && record.__motion2d && C && C.Cartesian3 &&
-        typeof C.Cartesian3.fromDegrees === "function") {
-      var ll = extrapolate2d(record);
-      var height = kind === "adsb" ? Math.max(8, Number(record.altitudeM) || 0) : 5 * modelScale(kind, record);
-      return C.Cartesian3.fromDegrees(ll.lon, ll.lat, height);
-    }
     if (rec && rec.entities && record && C) {
       var entity = rec.entities[kind + "-" + record.id];
       if (entity && entity.position && typeof entity.position.getValue === "function") {
@@ -2293,7 +1969,7 @@
   /* ---- v4.14 motion: the visible GLB primitives and 2D markers are driven at
      ~10 Hz from the extrapolated samples (SDRangel semantics), not only at
      batch times. AIS stays on its constant-position behaviour. ---- */
-  function updateLegacyMotion2d(record) {
+  function updateMotion2d(record) {
     if (!record) return;
     var t = now();
     var m = record.__motion2d;
@@ -2301,126 +1977,29 @@
       Math.abs(m.x1 - record.lon) > 0.00003 ||
       Math.abs(m.y1 - record.lat) > 0.00003;
     if (moved) {
-      var previousDisplay = m ? extrapolateLegacy2d(record) : null;
       record.__motion2d = {
         t0: m ? m.t1 : t, y0: m ? m.y1 : record.lat, x0: m ? m.x1 : record.lon,
-        t1: t - Math.min(3600, record.__positionAgeSec || 0) * 1000, y1: record.lat, x1: record.lon,
-        /* Reconcile a fresh fix without teleporting back from prediction.
-           Corrections fade over one second; received coordinates stay intact. */
-        correctionLat: previousDisplay ? previousDisplay.lat - record.lat : 0,
-        correctionLon: previousDisplay ? previousDisplay.lon - record.lon : 0
+        t1: t, y1: record.lat, x1: record.lon
       };
     }
-    // A received ground speed and course already define display velocity.
-    // Do not require a second CPR fix just to start rendering movement.
-    if (record.__motion2d) {
-      record.__motion2d.speedKn = asNumber(record.speedKn);
-      record.__motion2d.courseDeg = asNumber(record.courseDeg);
-      var motion=record.__motion2d;
-      if (motion.courseDeg === null && (motion.x1 !== motion.x0 || motion.y1 !== motion.y0)) {
-        var a=motion.y0*Math.PI/180,b=motion.y1*Math.PI/180,d=(motion.x1-motion.x0)*Math.PI/180;
-        motion.courseDeg=(Math.atan2(Math.sin(d)*Math.cos(b),Math.cos(a)*Math.sin(b)-Math.sin(a)*Math.cos(b)*Math.cos(d))*180/Math.PI+360)%360;
-      }
-    }
   }
-  function extrapolateLegacy2d(record) {
+  function extrapolate2d(record) {
     var m = record.__motion2d;
-    if (m && m.speedKn !== null && m.speedKn >= 0 && m.speedKn < 2000 &&
-        m.courseDeg !== null && isFinite(m.courseDeg)) {
-      var age = Math.max(0, (now() - m.t1) / 1000);
-      var ahead = Math.min(age, 60);
-      var angle = m.speedKn * 0.514444 * ahead / 6371000;
-      var bearing = m.courseDeg * Math.PI / 180;
-      var lat0 = m.y1 * Math.PI / 180, lon0 = m.x1 * Math.PI / 180;
-      var lat = Math.asin(clamp(Math.sin(lat0) * Math.cos(angle) + Math.cos(lat0) * Math.sin(angle) * Math.cos(bearing), -1, 1));
-      var lon = lon0 + Math.atan2(Math.sin(bearing) * Math.sin(angle) * Math.cos(lat0), Math.cos(angle) - Math.sin(lat0) * Math.sin(lat));
-      var correction = Math.max(0, 1 - age);
-      return { lat: lat * 180 / Math.PI + (m.correctionLat || 0) * correction,
-        lon: ((lon * 180 / Math.PI + 540) % 360) - 180 + (m.correctionLon || 0) * correction };
-    }
     if (!m || !(m.t1 > m.t0) || !isFinite(m.x1) || !isFinite(m.y1)) return { lat: record.lat, lon: record.lon };
     var dt = (m.t1 - m.t0) / 1000;
     if (!(dt > 0)) return { lat: record.lat, lon: record.lon };
-    var age = Math.max(0, (now() - m.t1) / 1000);
-    var ahead = Math.min(age, 60);
-    var correction = Math.max(0, 1 - age);
+    var ahead = clamp((now() - m.t1) / 1000, -600, 60);
     var vx = (m.x1 - m.x0) / dt, vy = (m.y1 - m.y0) / dt;
-    return {
-      lat: m.y1 + vy * ahead + (m.correctionLat || 0) * correction,
-      lon: m.x1 + vx * ahead + (m.correctionLon || 0) * correction
-    };
-  }
-  /* v4.45 aircraft display: bounded prediction, reception-time reconciliation.
-     The exponential correction cannot outrun forward velocity: tau >= 2*d/v.
-     Both prediction and correction freeze at the same five-second horizon. */
-  function aircraftProjectedFix(m, seconds) {
-    var angle = (m.speedKn || 0) * 0.514444 * seconds / 6371000;
-    var bearing = (m.courseDeg || 0) * Math.PI / 180;
-    var lat0 = m.y1 * Math.PI / 180, lon0 = m.x1 * Math.PI / 180;
-    var lat = Math.asin(clamp(Math.sin(lat0) * Math.cos(angle) + Math.cos(lat0) * Math.sin(angle) * Math.cos(bearing), -1, 1));
-    var lon = lon0 + Math.atan2(Math.sin(bearing) * Math.sin(angle) * Math.cos(lat0), Math.cos(angle) - Math.sin(lat0) * Math.sin(lat));
-    return {lat: lat * 180 / Math.PI, lon: ((lon * 180 / Math.PI + 540) % 360) - 180};
-  }
-  function updateMotion2d(record) {
-    if (!record || record.kind !== "adsb") return updateLegacyMotion2d(record);
-    var t = now(), m = record.__motion2d;
-    var sameFix = m && record.lat === m.y1 && record.lon === m.x1;
-    var stamp = Number(record.lastPositionAt) || (sameFix ? m.t1 : t - Math.max(0, Number(record.__positionAgeSec) || 0) * 1000);
-    var speed = asNumber(record.speedKn), course = asNumber(record.courseDeg);
-    if (speed === null && m && !sameFix && stamp > m.t1) {
-      var sampleDy = (record.lat-m.y1)*111195;
-      var sampleDx = (record.lon-m.x1)*111195*Math.cos(record.lat*Math.PI/180);
-      speed = Math.sqrt(sampleDx*sampleDx + sampleDy*sampleDy) / ((stamp-m.t1)/1000) / 0.514444;
-    }
-    if (speed === null || speed < 0 || speed >= 2000) speed = 0;
-    if (course === null || !isFinite(course)) {
-      if (m && !sameFix) {
-        var dy = (record.lat-m.y1)*Math.PI/180, dx = (record.lon-m.x1)*Math.PI/180*Math.cos(record.lat*Math.PI/180);
-        course = (Math.atan2(dx,dy)*180/Math.PI+360)%360;
-      } else course = m ? m.courseDeg : null;
-    }
-    if (course === null) { speed = 0; course = 0; }
-    if (m && m.aircraft445 && stamp <= m.t1 && record.lat === m.y1 && record.lon === m.x1 && speed === m.speedKn && course === m.courseDeg) return;
-    if (m && m.aircraft445 && stamp < m.t1) return;
-    var previous = m ? extrapolate2d(record) : null;
-    var age = Math.max(0, (t - stamp) / 1000);
-    var next = {aircraft445:true, t0:m ? m.t1 : stamp, x0:m ? m.x1 : record.lon, y0:m ? m.y1 : record.lat, t1:stamp, receivedAt:t, y1:record.lat, x1:record.lon,
-      speedKn:speed, courseDeg:course, startAge:Math.min(age,5), correctionLat:0, correctionLon:0, tau:2};
-    var base = aircraftProjectedFix(next, next.startAge);
-    if (previous) {
-      next.correctionLat = previous.lat - base.lat;
-      next.correctionLon = ((previous.lon - base.lon + 540) % 360) - 180;
-      var dy = next.correctionLat * 111195;
-      var dx = next.correctionLon * 111195 * Math.cos(base.lat * Math.PI / 180);
-      next.tau = Math.max(2, 2 * Math.sqrt(dx*dx + dy*dy) / Math.max(1, speed * 0.514444));
-    }
-    record.__motion2d = next;
-  }
-  function extrapolate2d(record) {
-    var m = record && record.__motion2d;
-    if (!m || !m.aircraft445) return extrapolateLegacy2d(record);
-    var elapsed = Math.min(Math.max(0, (now() - m.receivedAt) / 1000), Math.max(0, 5 - m.startAge));
-    var base = aircraftProjectedFix(m, m.startAge + elapsed);
-    // With no valid ground speed, hold rather than manufacture a return glide.
-    var decay = m.speedKn > 0 ? Math.exp(-elapsed / m.tau) : 1;
-    return {lat:base.lat + m.correctionLat * decay,
-      lon:((base.lon + m.correctionLon * decay + 540) % 360) - 180};
+    return { lat: m.y1 + vy * ahead, lon: m.x1 + vx * ahead };
   }
   function installMotionTicker(rec) {
     if (!rec || rec.__motionTicker) return;
     rec.__motionTicker = true;
+    var C = window.Cesium;
     var run = function () {
-      rec.__motionTicks = (rec.__motionTicks || 0) + 1;
-      rec.__motionLastTick = now();
-      /* Resolve on every tick: 2D may install this timer before Cesium loads. */
-      var C = window.Cesium;
       try {
         if (!rec.win || !rec.win.isConnected) return;
         var kindKey = rec.spec && rec.spec.key;
-        if (rec.infoPanel && now() - (rec.__infoUpdatedAt || 0) >= 1000) {
-          rec.__infoUpdatedAt = now();
-          try { renderInfoPage(rec); } catch(infoError) { rec.__infoUpdateError=String(infoError); }
-        }
         /* 3D: glide every visible primitive (aircraft AND ships) along the extrapolated track */
         if (rec.viewer && C) {
           var groups = [
@@ -2434,7 +2013,6 @@
               if (!entry || entry.cancelled || !entry.model) continue;
               var record = grp.records[String(ids[i]).replace(new RegExp("^" + grp.prefix), "")];
               if (!record) continue;
-              try {
               var pos = livePositionFor(rec, grp.kind, record, C);
               if (grp.kind === "adsb") entry.modelMatrix = aircraftModelMatrix(rec, record, C, pos);
               else {
@@ -2449,24 +2027,11 @@
               try {
                 var locked = !!(rec.follow && rec.follow.id === String(record.id) &&
                   (rec.follow.kind || kindKey) === grp.kind);
-                if (grp.kind === "adsb") applyAircraftContrast(rec, entry.model, record, C);
-                else {
-                  entry.model.silhouetteSize = locked ? 3 : 0;
-                  if (locked) entry.model.silhouetteColor = C.Color.fromCssColorString("#ffd24a");
-                }
+                entry.model.silhouetteSize = locked ? 3 : 0;
+                if (locked) entry.model.silhouetteColor = C.Color.fromCssColorString("#ffd24a");
               } catch (e1) {}
-              } catch (modelError) { entry.__motionError = String(modelError); }
             }
           }
-          try { refreshAircraftContrast(rec); } catch (contrastError) { rec.__contrastError = String(contrastError); }
-          Object.keys(rec.entities || {}).forEach(function(id){
-            var entity=rec.entities[id],record=(RECORDS[kindKey] || {})[id.replace(kindKey+"-","")];
-            if (!entity || !entity.polyline || !record) return;
-            try {
-              entity.polyline.positions=trackPositions(kindKey,record,C);
-              entity.polyline.show=trackShow(rec,record)&&trackDisplayPoints(record).length>=2;
-            } catch(trackError) {}
-          });
           /* v4.16 pursuit: the camera rides the extrapolated target every tick */
           if (rec.follow) {
             var fRec = followRecord(rec);
@@ -2488,13 +2053,6 @@
             var marker = rec.map2dMarkers[mids[j]];
             if (!r || !marker) continue;
             var ll = extrapolate2d(r);
-            var points = trackDisplayPoints(r);
-            var trace = rec.map2dTracks && rec.map2dTracks[mids[j]];
-            if (trackShow(rec,r) && points.length>=2) {
-              var latlngs=points.map(function(p){return [p.lat,p.lon];});
-              if (trace) trace.setLatLngs(latlngs);
-              else if (window.L && rec.map2dTracks) rec.map2dTracks[mids[j]]=createTrack2D(window.L,latlngs,rec);
-            } else if (trace) { rec.map2d.removeLayer(trace);delete rec.map2dTracks[mids[j]]; }
             var cur = marker.getLatLng();
             if (!cur || Math.abs(cur.lat - ll.lat) > 1e-7 || Math.abs(cur.lng - ll.lon) > 1e-7) {
               marker.setLatLng([ll.lat, ll.lon]);
@@ -2512,27 +2070,9 @@
             }
           }
         }
-      } catch (e) {
-        rec.__motionError = String(e && (e.stack || e.message) || e);
-        rec.__motionErrorAt = now();
-        rec.__motionErrors = (rec.__motionErrors || 0) + 1;
-      }
+      } catch (e) {}
     };
     window.setInterval(run, 100);
-  }
-
-  function aircraftDisplayProperty(record, C) {
-    if (!C.CallbackProperty || !C.ReferenceFrame || !C.PositionProperty) return null;
-    var callback = function (time, result) {
-      var ll = extrapolate2d(record);
-      return C.Cartesian3.fromDegrees(ll.lon, ll.lat, Math.max(8, Number(record.altitudeM) || 0), undefined, result);
-    };
-    var prop = new C.CallbackProperty(callback, false);
-    prop.referenceFrame = C.ReferenceFrame.FIXED;
-    prop.getValueInReferenceFrame = function (time, referenceFrame, result) {
-      return C.PositionProperty.convertToReferenceFrame(time, callback(time, result), C.ReferenceFrame.FIXED, referenceFrame, result);
-    };
-    return prop;
   }
 
   function makeEntity(rec, record) {
@@ -2544,8 +2084,6 @@
       var sampled = addPositionSample(record, pos, C);
       if (sampled) entityPos = sampled;
     }
-    var sharedPosition = kind === "adsb" ? aircraftDisplayProperty(record, C) : null;
-    if (sharedPosition) entityPos = sharedPosition;
     var color = colorFor(kind, record, C);
     var label = recordLabel(kind, record);
     var opts = {
@@ -2563,31 +2101,29 @@
         text: label,
         font: "11px Segoe UI, Arial, sans-serif",
         scale: Number(rec.prefs.labelScale) || 1,
-        pixelOffset: new C.Cartesian2(0, -(25 * aircraftSizeFactor(rec) + 14)),
-        horizontalOrigin: C.HorizontalOrigin && C.HorizontalOrigin.CENTER,
-        verticalOrigin: C.VerticalOrigin && C.VerticalOrigin.BOTTOM,
-        backgroundPadding: new C.Cartesian2(4, 2),
-        fillColor: C.Color.fromCssColorString(trackContrast2D(rec.prefs.baseMap).color),
-        outlineColor: C.Color.fromCssColorString(trackContrast2D(rec.prefs.baseMap).outline),
-        outlineWidth: 2,
+        pixelOffset: new C.Cartesian2(10, -10),
+        pixelOffsetScaleByDistance: new C.NearFarScalar(1.5e2, 1.0, 1.0e7, 0.5),
+        fillColor: C.Color.WHITE,
+        outlineColor: C.Color.BLACK,
+        outlineWidth: 3,
         style: C.LabelStyle.FILL_AND_OUTLINE,
-        showBackground: false,
-        backgroundColor: C.Color.fromCssColorString(trackContrast2D(rec.prefs.baseMap).outline).withAlpha(0.85),
+        showBackground: true,
+        backgroundColor: C.Color.fromCssColorString("#09131d").withAlpha(0.86),
         show: rec.prefs.labels
       },
       polyline: {
         positions: trackPositions(kind, record, C),
-        width: kind === "adsb" ? 7 : 5,
-        material: cesiumTrackMaterial(kind, C, rec),
+        width: 5,
+        material: cesiumTrackMaterial(kind, C),
         clampToGround: true,
-        show: trackShow(rec, record) && trackDisplayPoints(record).length >= 2
+        show: trackShow(rec, record) && !!(record.track && record.track.length >= 2)
       }
     };
     if (kind === "adsb") {
       opts.model = {
         uri: AIRCRAFT_MODEL,
         scale: modelScale(kind, record),
-        minimumPixelSize: 50 * aircraftSizeFactor(rec) * aircraftTargetZoom(rec, record),
+        minimumPixelSize: 50,
         maximumScale: 12000,
         runAnimations: false,
         color: C.Color.WHITE,
@@ -2604,7 +2140,6 @@
       }
     }
     var entity = rec.viewer.entities.add(opts);
-    entity.__dnxSharedMotion = !!sharedPosition;
     rec.entities[id] = entity;
     rec.entityKinds[id] = kind === "ais" ? (record.kindName || aisModelKind(record)) : "aircraft";
     if (kind === "ais") ensureShipModel(rec, entity, record);
@@ -2615,9 +2150,7 @@
   function updateEntity(rec, entity, record) {
     var C = window.Cesium, kind = rec.spec.key;
     var pos = positionFor(kind, record, C);
-    if (entity.__dnxSharedMotion) {
-      addPositionSample(record, pos, C); // raw samples remain measured-only
-    } else if (entity.position && typeof entity.position.addSample === "function") {
+    if (entity.position && typeof entity.position.addSample === "function") {
       addPositionSample(record, pos, C);
     } else {
       entity.position = pos;
@@ -2629,16 +2162,13 @@
     }
     if (entity.polyline) {
       entity.polyline.positions = trackPositions(kind, record, C);
-      entity.polyline.show = trackShow(rec, record) && trackDisplayPoints(record).length >= 2;
-      entity.polyline.width = kind === "adsb" ? 7 : 5;
+      entity.polyline.show = trackShow(rec, record) && !!(record.track && record.track.length >= 2);
+      entity.polyline.width = 5;
       entity.polyline.clampToGround = true;
-      entity.polyline.material = cesiumTrackMaterial(kind, C, rec);
+      entity.polyline.material = cesiumTrackMaterial(kind, C);
     }
     if (kind === "adsb") {
-      if (entity.model) {
-        entity.model.scale = 1.25 * aircraftSizeFactor(rec) * aircraftTargetZoom(rec, record);
-        entity.model.minimumPixelSize = 50 * aircraftSizeFactor(rec) * aircraftTargetZoom(rec, record);
-      }
+      if (entity.model) entity.model.scale = 1.25;
       ensureAircraftModel(rec, entity, record);
     } else {
       if (entity.model) entity.model.scale = modelScale(kind, record);
@@ -2661,114 +2191,17 @@
     return colors[record.kindName || aisModelKind(record)] || colors.generic;
   }
 
-  function leafletIcon(kind, record, rec) {
-    var contrast = trackContrast2D(rec && rec.prefs && rec.prefs.baseMap);
-    var color = kind === "adsb" ? contrast.color : mapColorCss(kind, record);
-    var outline = kind === "adsb" ? contrast.outline : "#071018";
+  function leafletIcon(kind, record) {
+    var color = mapColorCss(kind, record);
     var heading = headingFor(kind, record);
     var path = kind === "ais"
       ? '<path d="M16 2 L27 25 L16 21 L5 25 Z" fill="' + color + '" stroke="#071018" stroke-width="2"/>'
-      : '<path d="M16 1 L19 12 L29 16 L29 19 L19 17 L18 27 L23 29 L23 31 L16 29 L9 31 L9 29 L14 27 L13 17 L3 19 L3 16 L13 12 Z" fill="' + color + '" stroke="' + outline + '" stroke-width="1.7"/>';
-    var pixels = Math.round(28 * (kind === "adsb" ? aircraftSizeFactor(rec) : 1));
-    var box = pixels + 2;
-    var selected = kind === "adsb" && rec && rec.selection && rec.selection.id === String(record.id);
-    var frameCss = selected ? "outline:2px solid " + contrast.color + ";outline-offset:4px;border-radius:3px;box-shadow:0 0 0 5px " + contrast.outline + ";" : "";
-    var html = '<div class="dnx-am-leaf-marker" style="width:100%;height:100%;' + frameCss + '"><svg viewBox="0 0 32 32" width="' + pixels + '" height="' + pixels + '" style="transform:rotate(' + heading + 'deg)">' + path + '</svg></div>';
-    return window.L.divIcon({ html: html, className: "dnx-am-leaflet-icon", iconSize: [box, box], iconAnchor: [box / 2, box / 2], tooltipAnchor: [0, -box / 2] });
+      : '<path d="M16 1 L19 12 L29 16 L29 19 L19 17 L18 27 L23 29 L23 31 L16 29 L9 31 L9 29 L14 27 L13 17 L3 19 L3 16 L13 12 Z" fill="' + color + '" stroke="#071018" stroke-width="1.7"/>';
+    var html = '<div class="dnx-am-leaf-marker"><svg viewBox="0 0 32 32" width="28" height="28" style="transform:rotate(' + heading + 'deg)">' + path + '</svg></div>';
+    return window.L.divIcon({ html: html, className: "dnx-am-leaflet-icon", iconSize: [30, 30], iconAnchor: [15, 15], tooltipAnchor: [0, -15] });
   }
 
   function trackColorCss(kind) { return kind === "ais" ? "#ffe85a" : "#43e9ff"; }
-
-  function trackContrast2D(baseMap) {
-    var dark = baseMap === "dark" || baseMap === "satellite" || baseMap === "satlabels";
-    return dark ? { color: "#ffffff", outline: "#101820" } :
-      { color: "#17212b", outline: "#ffffff" };
-  }
-  function styleTrack2D(track, rec) {
-    if (!track || !track.__contrastLines) return;
-    var colors = trackColors(rec);
-    track.__contrastLines[0].setStyle({ color: colors.outline });
-    track.__contrastLines[1].setStyle({ color: colors.color });
-  }
-  function createTrack2D(L, latlngs, rec) {
-    var colors = trackColors(rec);
-    function line(color, width) {
-      return L.polyline(latlngs, { color: color, weight: width, opacity: 1,
-        lineCap: "round", lineJoin: "round", interactive: false,
-        className: "dnx-am-track" });
-    }
-    /* Two real Canvas-compatible strokes, not a CSS-only SVG effect. */
-    var lines = [line(colors.outline, 7), line(colors.color, 3)];
-    var group = L.layerGroup(lines);
-    group.__contrastLines = lines;
-    group.setLatLngs = function (points) {
-      lines[0].setLatLngs(points); lines[1].setLatLngs(points); return group;
-    };
-    return group.addTo(rec.map2d);
-  }
-
-
-  function trafficLabelNode(rec, text) {
-    var node = textNode(text), colors = trackContrast2D(rec.prefs.baseMap);
-    node.style.cssText = "display:inline-block;padding:2px 4px;border-radius:3px;font:600 11px Segoe UI,Arial,sans-serif;color:" + colors.color + ";background:transparent;border:0;text-shadow:-1px -1px 0 " + colors.outline + ",1px -1px 0 " + colors.outline + ",-1px 1px 0 " + colors.outline + ",1px 1px 0 " + colors.outline + ";line-height:15px;white-space:nowrap;pointer-events:none;";
-    return node;
-  }
-
-  // Re-evaluate screen clearance after zoom, rather than shrinking the offset
-  // with distance. Text bottom is outside the aircraft's projected extent.
-  function updateTrafficLabels(rec) {
-    var C = window.Cesium, viewer = rec && rec.viewer;
-    if (!C || !viewer || !rec.entities) return;
-    var scene = viewer.scene, camera = viewer.camera;
-    var colors = trackContrast2D(rec.prefs.baseMap);
-    Object.keys(rec.entities).forEach(function (id) {
-      var entity = rec.entities[id];
-      if (!entity || !entity.label) return;
-      try {
-        var label = entity.label;
-        var key = colors.color + colors.outline;
-        if (entity.__labelContrast !== key) {
-          label.fillColor = C.Color.fromCssColorString(colors.color);
-          label.outlineColor = C.Color.fromCssColorString(colors.outline);
-          label.backgroundColor = C.Color.fromCssColorString(colors.outline).withAlpha(0.85);
-          label.outlineWidth = 2;
-          label.showBackground = false;
-          label.horizontalOrigin = C.HorizontalOrigin.CENTER;
-          label.verticalOrigin = C.VerticalOrigin.BOTTOM;
-          entity.__labelContrast = key;
-        }
-        var halfSize = id.indexOf("adsb-") === 0 ? 25 * aircraftSizeFactor(rec) : 20;
-        var entry = (rec.aircraftModels || {})[id] || (rec.shipModels || {})[id];
-        var sphere = entry && entry.model && entry.model.boundingSphere;
-        var entityPosition = entity.position && entity.position.getValue && entity.position.getValue(viewer.clock.currentTime);
-        if (!sphere && entityPosition && id.indexOf("adsb-") === 0) {
-          var record = RECORDS.adsb[id.slice(5)];
-          if (record) sphere = { center: entityPosition, radius: aircraftModelLength(record) * aircraftSizeFactor(rec) / 2 };
-        }
-        var offsetX = 0, offsetY = 0;
-        if (sphere && entityPosition && scene.cartesianToCanvasCoordinates) {
-          var modelXY = scene.cartesianToCanvasCoordinates(sphere.center, new C.Cartesian2());
-          var entityXY = scene.cartesianToCanvasCoordinates(entityPosition, new C.Cartesian2());
-          if (modelXY && entityXY) {
-            offsetX = Math.round(modelXY.x - entityXY.x);
-            offsetY = Math.round(modelXY.y - entityXY.y);
-          }
-        }
-        if (sphere && camera && scene.canvas) {
-          var delta = C.Cartesian3.subtract(sphere.center, camera.positionWC, new C.Cartesian3());
-          var distance = Math.max(1, C.Cartesian3.magnitude(delta));
-          halfSize = Math.max(halfSize, sphere.radius * scene.canvas.clientHeight /
-            (2 * distance * Math.tan((camera.frustum.fovy || Math.PI / 3) / 2)));
-        }
-        var gap = Math.ceil(halfSize + 14);
-        var offsetKey = offsetX + ":" + (offsetY - gap);
-        if (entity.__labelOffset !== offsetKey) {
-          label.pixelOffset = new C.Cartesian2(offsetX, offsetY - gap);
-          entity.__labelOffset = offsetKey;
-        }
-      } catch (e) { /* An asynchronously loading model is retried next frame. */ }
-    });
-  }
 
   function textNode(text) {
     var node = document.createElement("span");
@@ -2783,17 +2216,15 @@
     records.forEach(function (record) {
       var id = String(record.id), marker = rec.map2dMarkers[id];
       var label = recordLabel(kind, record);
-      var display = extrapolate2d(record);
       if (!marker) {
-        marker = L.marker([display.lat, display.lon], {
-          icon: leafletIcon(kind, record, rec),
+        marker = L.marker([record.lat, record.lon], {
+          icon: leafletIcon(kind, record),
           keyboard: true,
           title: label,
           riseOnHover: true,
           zIndexOffset: 500
         }).addTo(rec.map2d);
-        marker.on("click", function () { selectTrafficTarget(rec, kind, id); });
-        marker.bindTooltip(trafficLabelNode(rec, label), { direction: "top", sticky: false, offset: [0, -(12 + Math.ceil(28 * aircraftSizeFactor(rec) * 0.208))], className: "dnx-am-traffic-label", permanent: !!rec.prefs.labels, opacity: 1 });
+        marker.bindTooltip(textNode(label), { direction: "top", sticky: true, permanent: !!rec.prefs.labels, opacity: 0.96 });
         marker.on("contextmenu", function (event) {
           var original = event && event.originalEvent;
           if (original) { original.preventDefault(); original.stopPropagation(); }
@@ -2801,13 +2232,12 @@
         });
         rec.map2dMarkers[id] = marker;
       } else {
-        marker.setLatLng([display.lat, display.lon]);
-        marker.setIcon(leafletIcon(kind, record, rec));
+        marker.setLatLng([record.lat, record.lon]);
+        marker.setIcon(leafletIcon(kind, record));
         marker.options.title = label;
         var tooltip = marker.getTooltip && marker.getTooltip();
         if (tooltip) {
-          tooltip.setContent(trafficLabelNode(rec, label));
-          tooltip.options.offset = [0, -(12 + Math.ceil(28 * aircraftSizeFactor(rec) * 0.208))];
+          tooltip.setContent(textNode(label));
           tooltip.options.permanent = !!rec.prefs.labels;
           if (rec.prefs.labels) marker.openTooltip();
           else marker.closeTooltip();
@@ -2815,15 +2245,22 @@
       }
       seen[id] = true;
 
-      var points = trackDisplayPoints(record);
+      var points = record.track || [];
       var track = rec.map2dTracks[id];
-      if (trackShow(rec, record) && points.length >= 2) {
+      if (rec.prefs.tracks && points.length >= 2) {
         var latlngs = points.map(function (point) { return [point.lat, point.lon]; });
-        if (track) {
-          track.setLatLngs(latlngs);
-          styleTrack2D(track, rec);
-        } else {
-          rec.map2dTracks[id] = createTrack2D(L, latlngs, rec);
+        if (track) track.setLatLngs(latlngs);
+        else {
+          track = L.polyline(latlngs, {
+            color: trackColorCss(kind),
+            weight: 5,
+            opacity: 0.98,
+            lineCap: "round",
+            lineJoin: "round",
+            interactive: false,
+            className: "dnx-am-track"
+          }).addTo(rec.map2d);
+          rec.map2dTracks[id] = track;
         }
       } else if (track) {
         try { rec.map2d.removeLayer(track); } catch (e) {}
@@ -3012,7 +2449,7 @@
     var hud = q("[data-am-follow-hud]", rec.win);
     var follow = rec.follow;
     if (!hud) return;
-    hud.hidden = !follow || !!follow.native;
+    hud.hidden = !follow;
     if (!follow) return;
     var kind = followTargetKind(rec);
     var record = (RECORDS[kind] || {})[follow.id];
@@ -3039,7 +2476,7 @@
       telemetry.textContent = altPart + Math.round(speed) + " kn · " + distKm.toFixed(1) + " km zum Standort";
     }
     if (preset) preset.value = follow.preset || "custom";
-    if (slider && !rec.__offsetDragging) slider.value = String(Math.round(follow.modelOffsetDeg || 0));
+    if (slider) slider.value = String(Math.round(follow.modelOffsetDeg || 0));
     if (offsetValue) {
       var deg = Math.round(follow.modelOffsetDeg || 0);
       offsetValue.textContent = (deg > 0 ? "+" : "") + deg + "°";
@@ -3073,28 +2510,6 @@
     }
     rec.pendingFollowId = null;
     if (rec.follow) stopFollow(rec, false);
-    var nativeTarget = nativeTargetFor(rec, kind, id);
-    if (nativeTarget) {
-      var heading = headingFor(kind, record);
-      rec.follow = { native: true, kind: kind, id: id, yaw: 0, pitch: 28, range: 3.1,
-        camHeading: heading, lastCameraAt: now(), modelOffsetDeg: 0, autoOrbit: false,
-        preset: "behind", lastFrameMs: 0, raf: null };
-      if (kind === "adsb" && rec.prefs.aircraftDistance) {
-        rec.follow.range = Math.max(0.1, (rec.prefs.aircraftDistance - 12) / aircraftModelLength(record));
-      }
-      var length = followModelLength(kind, record);
-      var distance = rec.follow.range * length + (kind === "adsb" ? 12 : 15);
-      var offset = followCameraLocal(heading, 0, 28, distance, 0);
-      nativeTarget.viewFrom = new window.Cesium.Cartesian3(offset.east, offset.north, offset.up);
-      rec.selection = { kind: kind, id: id };
-      rec.viewer.trackedEntity = nativeTarget;
-      rec.viewer.selectedEntity = nativeTarget;
-      rec.didAutoFit = true;
-      updateFollowUi(rec); updateNativeCameraButton(rec);
-      rec.viewer.scene.requestRender();
-      setStatus(rec, "Mausrad: Flugzeug ausgewählt = nur dieses Modell · ohne Auswahl = Karte");
-      return;
-    }
     var controller = rec.viewer.scene && rec.viewer.scene.screenSpaceCameraController;
     rec.cameraInputsBeforeFollow = controller && controller.enableInputs !== undefined ? controller.enableInputs : true;
     if (controller) controller.enableInputs = false;
@@ -3111,9 +2526,6 @@
       modelOffsetDeg: 0, autoOrbit: false, preset: "behind",
       lastFrameMs: 0, raf: null
     };
-    if (kind === "adsb" && rec.prefs.aircraftDistance) {
-      rec.follow.range = Math.max(0.1, (rec.prefs.aircraftDistance - 12) / aircraftModelLength(record));
-    }
     rec.didAutoFit = true;
     updateFollowUi(rec);
     updateFollowCamera(rec, record, 0);
@@ -3128,9 +2540,6 @@
       rec.pendingFollowId = null;
       return;
     }
-    if (follow.native && rec.viewer) {
-      rec.viewer.trackedEntity = undefined;
-    }
     if (follow.raf && window.cancelAnimationFrame) {
       try { window.cancelAnimationFrame(follow.raf); } catch (e) {}
     }
@@ -3143,7 +2552,6 @@
     if (canvas && rec.followTouchActionBefore !== undefined) canvas.style.touchAction = rec.followTouchActionBefore;
     rec.followTouchActionBefore = undefined;
     rec.follow = null;
-    updateNativeCameraButton(rec);
     rec.pendingFollowId = null;
     var kind = follow.kind || (rec.spec && rec.spec.key) || "ais";
     var record = (RECORDS[kind] || {})[follow.id];
@@ -3166,16 +2574,6 @@
   function updateFollowCamera(rec, record, dtHint) {
     if (!rec || !rec.viewer || !rec.follow || !record || !window.Cesium) return;
     var C = window.Cesium, follow = rec.follow;
-    if (follow.native) {
-      if (dtHint === undefined) return;
-      var length = followModelLength(followTargetKind(rec), record);
-      var distance = follow.range * length + (followTargetKind(rec) === "adsb" ? 12 : 15);
-      var offset = followCameraLocal(headingFor(followTargetKind(rec), record), follow.yaw, follow.pitch, distance, 0);
-      rec.viewer.camera.lookAtTransform(rec.viewer.camera.transform,
-        new C.Cartesian3(offset.east, offset.north, offset.up));
-      rec.viewer.scene.requestRender();
-      return;
-    }
     var kind = followTargetKind(rec);
     var modelLength = followModelLength(kind, record);
     var currentHeading = headingFor(kind, record);
@@ -3231,15 +2629,13 @@
     var kind = followTargetKind(rec);
     var record = (RECORDS[kind] || {})[rec.follow.id];
     var entity = rec.entities && rec.entities[kind + "-" + rec.follow.id];
-    if (record && window.Cesium) {
-      var C = window.Cesium;
-      var pos = livePositionFor(rec, kind, record, C);
-      var entry = ((kind === "adsb" ? rec.aircraftModels : rec.shipModels) || {})[kind + "-" + rec.follow.id];
-      if (entry && entry.model) {
-        entry.modelMatrix = kind === "adsb" ? aircraftModelMatrix(rec, record, C, pos) : aisModelMatrix(record, C, offset, pos);
-        entry.model.modelMatrix = entry.modelMatrix;
+    if (record && entity) {
+      if (kind === "ais") ensureShipModel(rec, entity, record);
+      else ensureAircraftModel(rec, entity, record);
+      if (entity.model) {
+        var C = window.Cesium, pos = positionFor(kind, record, C);
+        entity.orientation = displayOrientation(rec, kind, record, pos, C, true);
       }
-      if (entity && entity.model) entity.orientation = displayOrientation(rec, kind, record, pos, C, true);
     }
     updateFollowUi(rec);
     if (rec.viewer && rec.viewer.scene) {
@@ -3274,29 +2670,6 @@
     if (rec.follow.autoOrbit) scheduleAutoOrbit(rec);
   }
 
-  // Wheel ownership is spatial: only the explicitly selected target/frame
-  // owns aircraft zoom. Empty terrain must never snap to nearby traffic.
-  function wheelHitsSelectedTarget(rec, event) {
-    var selected = rec && rec.selection;
-    var viewer = rec && rec.viewer, C = window.Cesium;
-    if (!selected || !viewer || !C || !isFinite(event.clientX) || !isFinite(event.clientY)) return false;
-    var canvas = viewer.scene.canvas;
-    if (!canvas || !canvas.getBoundingClientRect) return false;
-    var rect = canvas.getBoundingClientRect();
-    var point = new C.Cartesian2(event.clientX - rect.left, event.clientY - rect.top);
-    var picked = pickTrafficTarget(rec, point);
-    if (picked && picked.kind === selected.kind && String(picked.id) === String(selected.id)) return true;
-    // Native indicator uses the actual 68px path, NOT its transparent 160px SVG.
-    try {
-      var target = viewer.selectedEntity;
-      var pos = target && target.position && target.position.getValue(viewer.clock.currentTime);
-      if (!pos) return false;
-      var xy = viewer.scene.cartesianToCanvasCoordinates(pos, new C.Cartesian2());
-      if (!xy || xy.x < 0 || xy.y < 0 || xy.x > canvas.clientWidth || xy.y > canvas.clientHeight) return false;
-      return Math.abs(point.x - xy.x) <= 36 && Math.abs(point.y - xy.y) <= 36;
-    } catch (e) { return false; }
-  }
-
   function installFollowInput(rec) {
     if (!rec || !rec.viewer || rec.followInputHandlers) return;
     var canvas = rec.viewer.scene.canvas;
@@ -3317,7 +2690,7 @@
       updateFollowUi(rec);
     }
     var down = function (event) {
-      if (!rec.follow || rec.follow.native || (event.pointerType !== "touch" && event.button !== 0)) return;
+      if (!rec.follow || (event.pointerType !== "touch" && event.button !== 0)) return;
       event.preventDefault();
       event.stopPropagation();
       pointers[event.pointerId] = { x: event.clientX, y: event.clientY, type: event.pointerType };
@@ -3368,28 +2741,7 @@
       }
     };
     var wheel = function (event) {
-      if (zoomSelectedAircraft(rec, event)) return;
       if (!rec.follow) return;
-      if (rec.follow.native || !wheelHitsSelectedTarget(rec, event)) {
-        // Over the focused model/frame keep native aircraft-distance zoom.
-        if (rec.follow.native && wheelHitsSelectedTarget(rec, event)) return;
-        // Tracking dolly only approaches the aircraft: terrain kilometres away
-        // barely changes. Lens zoom magnifies the WHOLE scene at fixed distance.
-        var frustum = rec.viewer.camera && rec.viewer.camera.frustum;
-        if (!frustum || !isFinite(frustum.fov) || frustum.fov <= 0) return;
-        var delta = Number(event.deltaY);
-        if (!isFinite(delta) || delta === 0) return;
-        if (event.deltaMode === 1) delta *= 16;
-        else if (event.deltaMode === 2) delta *= (canvas.clientHeight || 800);
-        event.preventDefault();
-        event.stopPropagation();
-        // Also prevent Cesium's same-canvas listener from queueing a dolly.
-        if (event.stopImmediatePropagation) event.stopImmediatePropagation();
-        frustum.fov = clamp(frustum.fov * Math.exp(clamp(delta, -1200, 1200) * 0.0015),
-          8 * Math.PI / 180, 100 * Math.PI / 180);
-        try { rec.viewer.scene.requestRender(); } catch (e) {}
-        return;
-      }
       event.preventDefault();
       event.stopPropagation();
       rec.follow.range = clamp(rec.follow.range * Math.exp(event.deltaY * 0.0015), 0.7, 20);
@@ -3397,7 +2749,7 @@
       if (record) updateFollowCamera(rec, record, 0.05);
     };
     var reset = function (event) {
-      if (!rec.follow || rec.follow.native) return;
+      if (!rec.follow) return;
       event.preventDefault();
       event.stopPropagation();
       rec.follow.yaw = 0; rec.follow.pitch = 28; rec.follow.range = 3.1;
@@ -3428,282 +2780,6 @@
     window.setTimeout(function () { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 3600);
   }
 
-  // No second telemetry stream: native EntityView/SelectionIndicator receive
-  // an invisible entity anchored to the very same rendered model/Entity.
-  function installNativeFocusBounds(rec) {
-    var C = window.Cesium, viewer = rec && rec.viewer;
-    var display = viewer && viewer.dataSourceDisplay;
-    if (!display || !display.getBoundingSphere || !C || !C.BoundingSphereState || rec.nativeFocusBoundsRestore) return;
-    var original = display.getBoundingSphere;
-    display.getBoundingSphere = function (entity, allowPartial, result) {
-      // Cesium 1.121 Viewer only updates EntityView on DONE, not FAILED.
-      // A graphics-free tracking proxy otherwise initializes once then freezes.
-      // Resolve ONLY our proxies directly; unrelated loading entities must not
-      // supply a stale scratch sphere or suspend this target's camera.
-      if (entity && entity.__dnxFocusOwner === rec) {
-        var pos = entity.position.getValue(viewer.clock.currentTime, result.center);
-        if (!pos) return C.BoundingSphereState.FAILED;
-        C.Cartesian3.clone(pos, result.center);
-        result.radius = 1;
-        return C.BoundingSphereState.DONE;
-      }
-      return original.call(this, entity, allowPartial, result);
-    };
-    rec.nativeFocusBoundsRestore = function () { display.getBoundingSphere = original; };
-  }
-
-  function pickTrafficTarget(rec, position) {
-    var scene = rec.viewer.scene, hits;
-    try { hits = scene.drillPick ? scene.drillPick(position) : [scene.pick(position)]; } catch(e) { return null; }
-    var first = null, selected = rec.selection;
-    for (var i = 0; i < hits.length; i++) {
-      var target = pickedTarget(hits[i]);
-      if (!target) continue;
-      if (!first) first = target;
-      // At overlapping aircraft, retain the explicitly selected identity rather
-      // than switching to whichever exaggerated model is nearest this frame.
-      if (selected && selected.kind === target.kind && selected.id === target.id) return target;
-    }
-    return first;
-  }
-
-  function nativeTargetFor(rec, kind, id) {
-    var C = window.Cesium, viewer = rec && rec.viewer;
-    if (!viewer || !viewer.entities || !C || (!C.CallbackPositionProperty && !C.CallbackProperty)) return null;
-    installNativeFocusBounds(rec);
-    var key = kind + "-" + id;
-    rec.nativeTargets = rec.nativeTargets || Object.create(null);
-    if (rec.nativeTargets[key]) return rec.nativeTargets[key];
-    var callback = function (time, result) {
-      var record = (RECORDS[kind] || {})[id];
-      if (!record) return undefined;
-      var models = kind === "adsb" ? rec.aircraftModels : rec.shipModels;
-      var entry = models && models[key];
-      var sphere = entry && !entry.cancelled && entry.model && entry.model.ready !== false && entry.model.boundingSphere;
-      var entity = rec.entities && rec.entities[key];
-      var pos = sphere && sphere.center;
-      if (!pos && entity && entity.position && entity.position.getValue) pos = entity.position.getValue(time);
-      if (!pos) return undefined;
-      return C.Cartesian3.clone(pos, result);
-    };
-    var property;
-    if (C.CallbackPositionProperty) property = new C.CallbackPositionProperty(callback, false);
-    else {
-      // Cesium 1.121 has CallbackProperty, but not CallbackPositionProperty.
-      // EntityView/VelocityVectorProperty also require the PositionProperty
-      // reference-frame contract; a plain CallbackProperty is insufficient.
-      property = new C.CallbackProperty(callback, false);
-      property.referenceFrame = C.ReferenceFrame.FIXED;
-      property.getValueInReferenceFrame = function (time, referenceFrame, result) {
-        var value = callback(time, result);
-        if (!value) return undefined;
-        return C.PositionProperty.convertToReferenceFrame(time, value,
-          C.ReferenceFrame.FIXED, referenceFrame, result);
-      };
-    }
-    var record = (RECORDS[kind] || {})[id];
-    var entity = viewer.entities.add({ id: "dnx-focus-" + key,
-      name: record ? recordLabel(kind, record) : id, position: property });
-    entity.__dnxFocusOwner = rec;
-    rec.nativeTargets[key] = entity;
-    return entity;
-  }
-
-  function updateNativeCameraButton(rec) {
-    if (!rec || !rec.infoPanel) return;
-    var button = q('[data-info-action="camera"]', rec.infoPanel);
-    if (!button) return;
-    var tracking = !!(rec.follow && rec.follow.id === String(rec.infoId) &&
-      followTargetKind(rec) === rec.infoKind);
-    button.setAttribute("aria-pressed", tracking ? "true" : "false");
-    button.title = tracking ? "Kameraverfolgung beenden" : "Kamera folgt diesem Ziel";
-    button.classList.toggle("tracking", tracking);
-    var play = q('[data-info-action="play"]', rec.infoPanel);
-    var stop = q('[data-info-action="stop-camera"]', rec.infoPanel);
-    var status = q('[data-target-status]', rec.infoPanel);
-    if (play) { play.disabled = tracking; play.textContent = tracking ? "▶ Läuft" : "▶ Play"; }
-    if (stop) stop.disabled = !tracking;
-    if (status) {
-      var record=(RECORDS[rec.infoKind] || {})[rec.infoId];
-      var age=record && record.lastPositionAt ? Math.max(0,Math.floor((now()-record.lastPositionAt)/1000)) : null;
-      status.textContent=(tracking ? "Kamera folgt" : "Ziel ausgewählt · Play startet Kamera") +
-        (age === null ? " · Positionszeit unbekannt" : " · Position " + age + " s alt" + (age>=60 ? " · Vorausberechnung angehalten" : ""));
-    }
-    var offset = q('[data-target-offset]', rec.infoPanel);
-    if (offset && !rec.__targetOffsetDragging && document.activeElement !== offset) offset.value = tracking ? rec.follow.modelOffsetDeg || 0 : 0;
-    var value = q('[data-target-offset-value]', rec.infoPanel);
-    if (value) value.textContent = (tracking ? rec.follow.modelOffsetDeg || 0 : 0) + "°";
-  }
-
-  function ensureTargetFollow(rec, kind, id) {
-    if (!rec.follow || rec.follow.id !== String(id) || followTargetKind(rec) !== kind) startFollowTarget(rec, String(id));
-  }
-
-  function buildTargetControls(rec, kind, id) {
-    var holder = q(".dnx-am-target-controls", rec.infoPanel);
-    if (!holder) return;
-    function choice(labelText, items, current, onChange) {
-      var label = document.createElement("label"), text = document.createElement("span");
-      label.setAttribute("data-target-control", labelText);
-      text.textContent = labelText;
-      var select = document.createElement("select");
-      select.setAttribute("aria-label", labelText);
-      items.forEach(function (item) {
-        var option = document.createElement("option");
-        option.value = String(item[0]); option.textContent = item[1];
-        option.selected = String(item[0]) === String(current); select.appendChild(option);
-      });
-      select.addEventListener("change", function () { onChange(select.value); });
-      label.appendChild(text); label.appendChild(select); holder.appendChild(label);
-    }
-    var status = document.createElement("small");status.setAttribute("data-target-status", "");holder.appendChild(status);
-    choice("A → B Spuren", [["selected","Nur fokussiertes Ziel"],["all","Alle Ziele"],["off","Keine"]], rec.prefs.tracks ? rec.prefs.groundTracks || "all" : "off",
-      function(v){rec.prefs.groundTracks=v;rec.prefs.tracks=v!=="off";applyTrackSettings(rec);});
-    choice("Spurfarbe", [["auto","Automatisch"],["#17212b","Dunkel"],["#ffffff","Weiß"],["#ffcc00","Gelb"],["#ff5533","Rot"],["#00bfff","Hellblau"],["#00cc88","Grün"],["#cc66ff","Violett"]], rec.prefs.trackColor || "auto",
-      function(v){rec.prefs.trackColor=v;applyTrackSettings(rec);});
-    var record = (RECORDS[kind] || {})[id];
-    if (record) choice("Info-Bereich", infoPages(kind, record).map(function(page,index){return [index,page.title];}), 0,
-      function(v){rec.infoIndex=Number(v);renderInfoPage(rec);});
-    if (kind === "adsb") {
-      choice("Flugzeuggröße · alle", [[1,"Normal"],[1.5,"1,5×"],[2,"2×"],[3,"3×"]], aircraftSizeFactor(rec), function (v) { setAircraftSize(rec,v); });
-      choice("Kamera-Abstand", [[0,"Bitte wählen"],[100,"100 m"],[250,"250 m"],[500,"500 m"],[1000,"1 km"],[3000,"3 km"]], rec.prefs.aircraftDistance || 0,
-        function(v) { setAircraftDistance(rec,id,v); });
-    }
-    choice("Kameraansicht", [["behind","Hinten"],["side","Seite"],["front","Vorne"],["above","Oben"]], "behind",
-      function(v) { ensureTargetFollow(rec,kind,id);setFollowPreset(rec,v); });
-    var offsetLabel = document.createElement("label"), text = document.createElement("span");
-    text.textContent = "Modell-Offset";
-    var range = document.createElement("input");range.type="range";range.min="-180";range.max="180";range.step="5";
-    range.setAttribute("data-target-offset", "");range.setAttribute("aria-label","Modell-Offset · rein visuell");
-    var value = document.createElement("span");value.setAttribute("data-target-offset-value", "");value.textContent="0°";
-    range.addEventListener("pointerdown",function(){rec.__targetOffsetDragging=true;});
-    function release(){rec.__targetOffsetDragging=false;}
-    range.addEventListener("pointerup",release);range.addEventListener("pointercancel",release);range.addEventListener("blur",release);
-    range.addEventListener("input",function(){ensureTargetFollow(rec,kind,id);setFollowModelOffset(rec,range.value);value.textContent=range.value+"°";});
-    range.addEventListener("change",release);
-    offsetLabel.setAttribute("data-target-control", "Modell-Offset");
-    offsetLabel.appendChild(text);offsetLabel.appendChild(range);offsetLabel.appendChild(value);holder.appendChild(offsetLabel);
-    var actions = document.createElement("div");actions.className="dnx-am-target-actions";
-    [["zoom","Auf Ziel zoomen"],["offset-reset","Offset zurücksetzen"],["orbit","Auto-Umlauf an/aus"],["replay","Spur abspielen"],["stop-replay","Spur stoppen"]].forEach(function(item){
-      var button=document.createElement("button");button.type="button";button.setAttribute("data-info-action",item[0]);button.textContent=item[1];actions.appendChild(button);
-    });holder.appendChild(actions);
-    var note=document.createElement("small");note.textContent="Play = Kameraverfolgung · Spur abspielen = gespeicherter Verlauf. Das Spur-Ende folgt der zeitlich begrenzten Vorausberechnung. Ohne Kurs/Geschwindigkeit oder neue Positionen kann ein Ziel stehen bleiben. Offset/Größe ändern keine Empfangsdaten.";holder.appendChild(note);
-  }
-
-  function toggleSelectedCamera(rec) {
-    if (!rec) return;
-    var kind = rec.infoPanel ? rec.infoKind : rec.selection && rec.selection.kind;
-    var id = rec.infoPanel ? rec.infoId : rec.selection && rec.selection.id;
-    if (!id) return;
-    if (rec.follow && rec.follow.id === String(id) && followTargetKind(rec) === kind) stopFollow(rec, true);
-    else startFollowTarget(rec, String(id));
-  }
-
-  function selectTrafficTarget(rec, kind, id) {
-    if (!rec) return;
-    rec.selection = (kind === "adsb" || kind === "ais") && id ? { kind: kind, id: String(id) } : null;
-    if (rec.viewer && rec.viewer.selectionIndicator) {
-      rec.viewer.selectedEntity = rec.selection ? nativeTargetFor(rec, kind, String(id)) : undefined;
-    }
-    if (rec.selection && rec.win && rec.win.isConnected &&
-        (!rec.infoPanel || rec.infoKind !== kind || String(rec.infoId) !== String(id))) {
-      openInfoSlideshow(rec, kind, String(id), false);
-    }
-    if (rec.map2d) syncMap2D(rec);
-    updateSelectionFrame(rec);
-    if (rec.viewer && rec.prefs.groundTracks === "selected") applyTrackSettings(rec);
-    if (rec.viewer && rec.viewer.scene) rec.viewer.scene.requestRender();
-  }
-  function updateSelectionFrame(rec) {
-    if (!rec || !rec.win) return;
-    var frame = q("[data-am-selection-frame]", rec.win);
-    if (!frame) return;
-    frame.hidden = true;
-    if (rec.viewer && rec.viewer.selectionIndicator) {
-      var selected = rec.selection && nativeTargetFor(rec, rec.selection.kind, rec.selection.id);
-      if (rec.viewer.selectedEntity !== (selected || undefined)) rec.viewer.selectedEntity = selected || undefined;
-      var vm = rec.viewer.selectionIndicator.viewModel;
-      if (vm) {
-        var anchor = selected && selected.position.getValue(rec.viewer.clock.currentTime);
-        vm.position = anchor;
-        vm.showSelection = !!anchor;
-        vm.update();
-      }
-      var colors = trackContrast2D(rec.prefs.baseMap);
-      var indicator = rec.viewer.selectionIndicator.container;
-      var svg = indicator && indicator.querySelector(".cesium-selection-wrapper svg");
-      if (svg) {
-        var key = colors.color + colors.outline;
-        if (rec.__nativeIndicatorKey !== key) {
-          svg.style.fill = "none";
-          svg.style.stroke = colors.color;
-          svg.style.strokeWidth = "2px";
-          svg.style.filter = "drop-shadow(0 0 1px " + colors.outline + ")";
-          var path = svg.querySelector("path");
-          if (path) path.setAttribute("d", "M -34 -34 L 34 -34 L 34 34 L -34 34 Z");
-          rec.__nativeIndicatorKey = key;
-        }
-      }
-      if (rec.follow && rec.follow.native && (!rec.viewer.trackedEntity ||
-          !(RECORDS[followTargetKind(rec)] || {})[rec.follow.id])) stopFollow(rec, false);
-      updateNativeCameraButton(rec);
-      return;
-    }
-    var selection = rec.selection;
-    var C = window.Cesium, viewer = rec.viewer;
-    if (!selection || !viewer || !C || selection.kind !== "adsb") return;
-    var record = RECORDS.adsb[selection.id];
-    if (!record || !validPosition(record.lat, record.lon)) return;
-    try {
-      var scene = viewer.scene;
-      var pos = livePositionFor(rec, "adsb", record, C);
-      var entry = (rec.aircraftModels || {})["adsb-" + selection.id];
-      var radius = aircraftModelLength(record) * aircraftSizeFactor(rec) / 2;
-      if (entry && entry.model && entry.model.boundingSphere) {
-        pos = entry.model.boundingSphere.center;
-        radius = entry.model.boundingSphere.radius;
-      } else {
-        /* The fallback is rendered by Cesium at viewer.clock.currentTime.
-           Its sampled position may differ from our wall-clock prediction.
-           A selection frame must follow what is actually on screen. */
-        var entity = (rec.entities || {})["adsb-" + selection.id];
-        if (entity && entity.position && typeof entity.position.getValue === "function") {
-          pos = entity.position.getValue(viewer.clock.currentTime);
-          if (!pos) return;
-        }
-      }
-      var camera = viewer.camera;
-      var delta = C.Cartesian3.subtract(pos, camera.positionWC, new C.Cartesian3());
-      if (C.Cartesian3.dot(delta, camera.directionWC) <= 0) return;
-      var xy = scene.cartesianToCanvasCoordinates(pos, new C.Cartesian2());
-      var canvas = scene.canvas;
-      if (!xy || xy.x < 0 || xy.y < 0 || xy.x > canvas.clientWidth || xy.y > canvas.clientHeight) return;
-      var distance = Math.max(1, C.Cartesian3.magnitude(delta));
-      var fovy = camera.frustum.fovy || Math.PI / 3;
-      var projected = radius * canvas.clientHeight / (distance * Math.tan(fovy / 2));
-      var size = clamp(Math.max(50 * aircraftSizeFactor(rec), projected) + 12, 44, 180);
-      /* Canvas coordinates are local CSS pixels; account for a different
-         positioned parent (and external CSS scaling) before placing overlay. */
-      var originX = 0, originY = 0;
-      if (canvas.getBoundingClientRect && frame.offsetParent && frame.offsetParent.getBoundingClientRect) {
-        var canvasRect = canvas.getBoundingClientRect();
-        var parent = frame.offsetParent;
-        var parentRect = parent.getBoundingClientRect();
-        var scaleX = parent.offsetWidth ? parentRect.width / parent.offsetWidth : 1;
-        var scaleY = parent.offsetHeight ? parentRect.height / parent.offsetHeight : 1;
-        originX = (canvasRect.left - parentRect.left) / (scaleX || 1) - (parent.clientLeft || 0);
-        originY = (canvasRect.top - parentRect.top) / (scaleY || 1) - (parent.clientTop || 0);
-      }
-      frame.style.left = (originX + xy.x - size / 2) + "px";
-      frame.style.top = (originY + xy.y - size / 2) + "px";
-      frame.style.width = size + "px"; frame.style.height = size + "px";
-      var contrast = trackContrast2D(rec.prefs && rec.prefs.baseMap);
-      frame.style.borderColor = contrast.color;
-      frame.style.boxShadow = "0 0 0 1px " + contrast.outline + ",inset 0 0 0 1px " + contrast.outline;
-      frame.hidden = false;
-    } catch (e) { /* A target outside the projectable scene has no screen frame. */ }
-  }
-
   function pickedTarget(picked) {
     if (!picked) return null;
     var id = picked.id;
@@ -3729,23 +2805,87 @@
     if (!rec || !rec.viewer || rec.trafficZoomHandler) return;
     var canvas = rec.viewer.scene && rec.viewer.scene.canvas;
     if (!canvas) return;
+    var state = { focusId: null, lastAt: 0 };
+
+    function trafficRecords() {
+      var list = RECORDS.adsb || {};
+      var out = [];
+      Object.keys(list).forEach(function (id) {
+        var record = list[id];
+        if (record && validPosition(asNumber(record.lat), asNumber(record.lon))) out.push(record);
+      });
+      return out;
+    }
+
+    function toWindow(C, scene, pos) {
+      var fn = null;
+      if (C.SceneTransforms && typeof C.SceneTransforms.worldToWindowCoordinates === "function") {
+        fn = C.SceneTransforms.worldToWindowCoordinates;
+      } else if (C.SceneTransforms && typeof C.SceneTransforms.wgs84ToWindowCoordinates === "function") {
+        fn = C.SceneTransforms.wgs84ToWindowCoordinates;
+      }
+      if (!fn) return null;
+      try { return fn.call(C.SceneTransforms, scene, pos); } catch (e) { return null; }
+    }
+
+    function pickFocusId(C, records, clientX, clientY) {
+      if (!records.length) return null;
+      var scene = rec.viewer.scene;
+      var rect = canvas.getBoundingClientRect();
+      var cx = clientX - rect.left, cy = clientY - rect.top;
+      var bestId = null, bestD = Infinity, i, w, d, pos;
+      for (i = 0; i < records.length; i++) {
+        pos = livePositionFor(rec, "adsb", records[i], C);
+        w = toWindow(C, scene, pos);
+        if (w) {
+          d = Math.sqrt((w.x - cx) * (w.x - cx) + (w.y - cy) * (w.y - cy));
+          if (d < bestD && d < 320) { bestD = d; bestId = String(records[i].id); }
+        }
+      }
+      if (bestId !== null) return bestId;
+      bestD = Infinity;
+      var midX = canvas.clientWidth / 2, midY = canvas.clientHeight / 2;
+      for (i = 0; i < records.length; i++) {
+        pos = livePositionFor(rec, "adsb", records[i], C);
+        w = toWindow(C, scene, pos);
+        if (w) {
+          d = Math.sqrt((w.x - midX) * (w.x - midX) + (w.y - midY) * (w.y - midY));
+          if (d < bestD) { bestD = d; bestId = String(records[i].id); }
+        }
+      }
+      if (bestId !== null) return bestId;
+      return String(records[0].id);
+    }
+
     var handler = function (event) {
-      if (zoomSelectedAircraft(rec, event)) return;
-      if (rec.follow || !wheelHitsSelectedTarget(rec, event)) return;
-      var C = window.Cesium, selected = rec.selection;
-      var record = (RECORDS[selected.kind] || {})[selected.id];
-      if (!record) return;
-      var focus = livePositionFor(rec, selected.kind, record, C);
-      if (!focus) return;
-      event.preventDefault(); event.stopPropagation();
-      if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+      if (rec.follow) return;
+      var C = window.Cesium;
+      if (!C || !rec.viewer || !rec.viewer.camera) return;
+      var records = trafficRecords();
+      if (!records.length) return;
+      /* With ADS-B traffic present the wheel approaches the traffic instead of
+         diving to the ground underneath it (which made aircraft vanish). */
+      event.preventDefault();
+      event.stopPropagation();
       var cam = rec.viewer.camera;
-      var offset = C.Cartesian3.subtract(cam.positionWC || cam.position, focus, new C.Cartesian3());
+      var stamp = now();
+      var focus = null;
+      if (state.focusId && RECORDS.adsb && RECORDS.adsb[state.focusId] &&
+          validPosition(asNumber(RECORDS.adsb[state.focusId].lat), asNumber(RECORDS.adsb[state.focusId].lon))) {
+        focus = livePositionFor(rec, "adsb", RECORDS.adsb[state.focusId], C);
+      }
+      if (!focus || stamp - state.lastAt > 2500) {
+        state.focusId = pickFocusId(C, records, event.clientX, event.clientY);
+        if (state.focusId === null) return;
+        focus = livePositionFor(rec, "adsb", RECORDS.adsb[state.focusId], C);
+        if (!focus) return;
+      }
+      state.lastAt = stamp;
+      var offset = C.Cartesian3.subtract(cam.position, focus, new C.Cartesian3());
       var dist = C.Cartesian3.magnitude(offset);
       if (!isFinite(dist) || dist < 1) dist = 800;
       var dir = C.Cartesian3.divideByScalar(offset, dist, new C.Cartesian3());
-      var delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? (canvas.clientHeight || 800) : 1);
-      dist = clamp(dist * Math.exp(delta * 0.0015), 45, 25000000);
+      dist = clamp(dist * Math.exp(event.deltaY * 0.0015), 45, 25000000);
       var pos = C.Cartesian3.add(focus, C.Cartesian3.multiplyByScalar(dir, dist, new C.Cartesian3()), new C.Cartesian3());
       var look = C.Cartesian3.normalize(C.Cartesian3.subtract(focus, pos, new C.Cartesian3()), new C.Cartesian3());
       var upV = C.Ellipsoid.WGS84.geodeticSurfaceNormal(pos, new C.Cartesian3());
@@ -3804,12 +2944,61 @@
   }
 
   function showContextMenu(rec, kind, id, x, y) {
-    // Right-click reaches the same docked target controls, never a cursor menu.
-    if (!(RECORDS[kind] || {})[id]) return;
+    var record = (RECORDS[kind] || {})[id];
+    if (!record || !rec || !rec.win) return;
     hideContextMenu();
-    selectTrafficTarget(rec, kind, id);
-    if (!rec.infoPanel || rec.infoKind !== kind || String(rec.infoId) !== String(id))
-      openInfoSlideshow(rec, kind, String(id), false);
+    var menu = document.createElement("div");
+    menu.className = "dnx-am-context-menu";
+    menu.setAttribute("role", "menu");
+    menu.__dnxOwner = rec;
+    var title = document.createElement("strong");
+    title.textContent = recordLabel(kind, record);
+    menu.appendChild(title);
+    function addAction(action, label, disabled) {
+      var button = document.createElement("button");
+      button.type = "button";
+      button.setAttribute("role", "menuitem");
+      button.setAttribute("data-context-action", action);
+      button.textContent = label;
+      button.disabled = !!disabled;
+      menu.appendChild(button);
+    }
+    addAction("info", "Alle Infos · Slideshow", false);
+    addAction("zoom", "Auf Ziel zoomen", false);
+    if (kind === "ais" || kind === "adsb") {
+      var isFollowing = rec.follow && (rec.follow.kind || rec.spec.key) === kind && rec.follow.id === String(id);
+      addAction("follow", isFollowing ? "3D-Folgeansicht beenden" : "3D um dieses Ziel kreisen", false);
+    }
+    var trackLength = record.track ? record.track.length : 0;
+    addAction("replay", trackLength >= 2 ? "Spur abspielen" : "Spur sammelt Positionen …", trackLength < 2);
+    if (rec.replayTimer) addAction("stop", "Spurwiedergabe stoppen", false);
+    document.body.appendChild(menu);
+    var v = viewport();
+    var r = menu.getBoundingClientRect();
+    menu.style.left = clamp(Number(x) || 8, 6, Math.max(6, v.w - r.width - 6)) + "px";
+    menu.style.top = clamp(Number(y) || 8, 6, Math.max(6, v.h - r.height - 6)) + "px";
+    contextMenu = menu;
+    menu.addEventListener("click", function (event) {
+      var button = event.target.closest && event.target.closest("[data-context-action]");
+      if (!button || button.disabled) return;
+      var action = button.getAttribute("data-context-action");
+      hideContextMenu();
+      if (action === "info") openInfoSlideshow(rec, kind, id, true);
+      if (action === "zoom") zoomToRecord(rec, kind, id);
+      if (action === "follow") {
+        if (rec.follow && (rec.follow.kind || rec.spec.key) === kind && rec.follow.id === String(id)) stopFollow(rec, true);
+        else startFollowTarget(rec, id);
+      }
+      if (action === "replay") playTrack(rec, kind, id);
+      if (action === "stop") stopTrackReplay(rec);
+    });
+    window.setTimeout(function () {
+      if (contextMenu !== menu) return;
+      menu.__outsideHandler = function (event) {
+        if (!menu.contains(event.target)) hideContextMenu();
+      };
+      document.addEventListener("pointerdown", menu.__outsideHandler, true);
+    }, 0);
   }
 
   function navStatusText(value) {
@@ -4003,56 +3192,13 @@
     return ADSB_TYPE_NAMES[code] || code;
   }
 
-  function aircraftRegistration(record) {
-    var candidates = [record && record.registration, record && record.reg, record && record.aircraft];
-    for (var i = 0; i < candidates.length; i++) {
-      var value = String(candidates[i] || "").trim().toUpperCase();
-      if (/^[A-Z0-9]{1,3}-[A-Z0-9]{2,6}$/.test(value) || /^N[0-9]{1,5}[A-Z]{0,2}$/.test(value) ||
-          /^JA[0-9A-Z]{4}$/.test(value) || /^HL[0-9]{4}$/.test(value)) return value;
-    }
-    return "";
-  }
-  function aircraftExternalLinks(record) {
-    var reg = aircraftRegistration(record);
-    var hex = String(record && (record.icao || record.id) || "").toUpperCase();
-    var flight = String(record && record.flight || "").trim().toUpperCase();
-    var links = [];
-    if (/^[A-F0-9]{6}$/.test(hex)) {
-      links.push({ label: "ADSB.lol · Live-Ziel", url: "https://globe.adsb.lol/?icao=" + hex.toLowerCase() });
-      links.push({ label: "ADS-B Exchange · Live-Ziel", url: "https://globe.adsbexchange.com/?icao=" + hex.toLowerCase() });
-    }
-    if (reg) {
-      links.push({ label: "Planespotters · Fotos / " + reg, url: "https://www.planespotters.net/photos/reg/" + encodeURIComponent(reg) });
-      links.push({ label: "JetPhotos · Fotos / " + reg, url: "https://www.jetphotos.com/registration/" + encodeURIComponent(reg) });
-      links.push({ label: "Flightradar24 · Flugzeug", url: "https://www.flightradar24.com/data/aircraft/" + encodeURIComponent(reg.toLowerCase()) });
-    }
-    if (/^[A-Z0-9]{3,10}$/.test(flight)) links.push({ label: "FlightAware · Rufzeichen", url: "https://www.flightaware.com/live/flight/" + encodeURIComponent(flight) });
-    links.push({ label: "Wikimedia Commons · Fotosuche", url: "https://commons.wikimedia.org/w/index.php?title=Special:MediaSearch&type=image&search=" + encodeURIComponent(reg || hex || flight || "aircraft") });
-    return links;
-  }
-  function appendAircraftLinks(parent, record) {
-    aircraftExternalLinks(record).forEach(function (item) {
-      var a = document.createElement("a");
-      a.href = item.url; a.target = "_blank"; a.rel = "noopener noreferrer";
-      a.textContent = item.label + " ↗";
-      a.style.cssText = "display:inline-block;color:#bde4ff;padding:4px 7px;text-decoration:underline;font-size:11px";
-      parent.appendChild(a);
-    });
-  }
-
   function aircraftPhotoQueries(record) {
     var queries = [];
     function add(query) { if (query && queries.indexOf(query) < 0) queries.push(query); }
     var flight = safeText(record && record.flight).toUpperCase().replace(/\s+/g, "");
     var name = aircraftTypeName(record);
     var key = adsbModelAssetKey(record);
-    var registration = aircraftRegistration(record);
-    if (registration) {
-      add('"' + registration + '" aircraft');
-      add('"' + registration.replace(/-/g, " ") + '" aircraft');
-    }
-    var hex = String(record && (record.icao || record.id) || "").toUpperCase();
-    if (/^[A-F0-9]{6}$/.test(hex)) add('"' + hex + '" aircraft');
+    if (flight.length >= 3) add('"' + flight + '" aircraft');
     if (name.length >= 3) add('"' + name + '" aircraft');
     if (key && PHOTO_TYPE_SEARCH_ADSB[key]) add(PHOTO_TYPE_SEARCH_ADSB[key]);
     return queries;
@@ -4065,14 +3211,13 @@
     var description = normalizePhotoText(photo.description);
     var allText = title + " " + description;
     var score = 0, matched = false;
-    var registration = aircraftRegistration(record);
-    var registrationWords = normalizePhotoText(registration);
-    /* Require registration/ICAO identity, never just a rotating flight number. */
-    if (registrationWords && (" " + allText + " ").indexOf(" " + registrationWords + " ") >= 0) {
-      score += 300; matched = true;
+    var flight = normalizePhotoText(record && record.flight || "").replace(/\s+/g, "");
+    if (flight.length >= 3) {
+      if (title.indexOf(flight) >= 0) { score += 120; matched = true; }
+      else if (description.indexOf(flight) >= 0) { score += 70; matched = true; }
     }
     var icao = normalizePhotoText(record && record.icao || record && record.id || "");
-    if (/^[a-f0-9]{6}$/.test(icao) && (" " + allText + " ").indexOf(" " + icao + " ") >= 0) { score += 240; matched = true; }
+    if (icao.length >= 6 && allText.indexOf(icao) >= 0) { score += 240; matched = true; }
     var name = normalizePhotoText(aircraftTypeName(record));
     if (name.length >= 3 && allText.indexOf(name) >= 0) score += 40;
     if (["model", "scale model", "maquette", "miniature", "toy", "cockpit", "cabin", "interior", "diagram", "drawing"].some(function (term) { return allText.indexOf(term) >= 0; })) score -= 200;
@@ -4101,7 +3246,7 @@
   }
 
   function getAircraftPhoto(record) {
-    var key = [record && record.icao || record && record.id || "", aircraftRegistration(record),
+    var key = [record && record.icao || record && record.id || "", record && record.flight || "",
                aircraftTypeName(record), adsbModelAssetKey(record) || "generic"].join("|");
     if (AIRCRAFT_PHOTO_CACHE[key]) return AIRCRAFT_PHOTO_CACHE[key];
     var queries = aircraftPhotoQueries(record);
@@ -4131,7 +3276,7 @@
     var isShip = photoKind === "ais";
     var key = isShip ?
       [record.imo || "", record.mmsi || "", shipPhotoName(record), record.kindName || "generic"].join("|") :
-      [record.icao || record.id || "", aircraftRegistration(record), aircraftTypeName(record), adsbModelAssetKey(record) || "generic"].join("|");
+      [record.icao || record.id || "", record.flight || "", aircraftTypeName(record), adsbModelAssetKey(record) || "generic"].join("|");
     if (holder.__photoKey === key) return;
     holder.__photoKey = key;
     holder.textContent = "";
@@ -4146,7 +3291,7 @@
       if (!photo) {
         loading.textContent = isShip ?
           "Kein passendes Schiffsbild gefunden (Wikimedia Commons)." :
-          "Kein eindeutig passendes Foto dieses Flugzeugs verfügbar. Fotos bei den externen Anbietern öffnen oder erneut laden.";
+          "Kein passendes Flugzeugbild gefunden (Wikimedia Commons).";
         holder.appendChild(loading);
         return;
       }
@@ -4156,7 +3301,7 @@
                 "Foto von " + (isShip ? (record.name || photo.title) : (record.flight || aircraftTypeName(record) || photo.title)) :
                 (isShip ? "Typbild: " + (AIS_CLASS_LABELS[record.kindName] || "Schiff") + " (nicht dieses Einzelschiff)" :
                           "Typbild: " + (aircraftTypeName(record) || "Flugzeug") + " (nicht dieses Einzelflugzeug)");
-      img.loading = "eager";
+      img.loading = "lazy";
       img.decoding = "async";
       img.referrerPolicy = "no-referrer";
       img.src = photo.src;
@@ -4168,13 +3313,11 @@
         fail.textContent = "Das Commons-Bild konnte nicht geladen werden.";
         holder.appendChild(fail);
       };
-      var photoLink = document.createElement("a");
-      photoLink.href = photo.pageUrl; photoLink.target = "_blank"; photoLink.rel = "noopener noreferrer";
-      photoLink.appendChild(img); holder.appendChild(photoLink);
+      holder.appendChild(img);
       var caption = document.createElement("div");
       caption.className = "dnx-am-info-photo-caption";
       caption.textContent = (photo.match === "exact" ?
-          (isShip ? "Schiffsfoto" : "Foto · " + (aircraftRegistration(record) || record.icao || record.id)) :
+          (isShip ? "Schiffsfoto" : "Flugzeugfoto") :
           (isShip ? "Typbild · nicht dieses Einzelschiff" : "Typbild · nicht dieses Einzelflugzeug")) +
         " · " + (photo.artist || "Wikimedia Commons") + " · " + photo.license;
       var source = document.createElement("a");
@@ -4222,9 +3365,7 @@
     return [
       { title: "Identität", fields: [
         ["Rufzeichen", record.flight || "—"], ["ICAO", record.icao || record.id || "—"],
-        ["Registrierung", aircraftRegistration(record) || "—"], ["Flugzeugtyp (Metadaten)", record.aircraft || record.modelType || "—"], ["Kategorie", record.category || "—"],
-        ["Modellauswahl", aircraftModelNotice(record)],
-        ["Lokaler Typabgleich", record.modelTypeStatus || "wartet / keine sichere Zuordnung"],
+        ["Flugzeug", record.aircraft || "—"], ["Kategorie", record.category || "—"],
         ["Squawk", record.squawk || "—"], ["Notfallstatus", record.emergency || "—"]
       ]},
       { title: "Position & Flug", fields: [
@@ -4236,7 +3377,6 @@
       ]},
       { title: "Empfang & Spur", fields: [
         ["Letzte Position", formatSeen(record.lastPositionAt)], ["Zuletzt empfangen", formatSeen(record.lastSeen)],
-        ["Positionsalter", record.lastPositionAt ? Math.max(0,Math.floor((now()-record.lastPositionAt)/1000)) + " s" : "unbekannt"],
         ["Meldungen", displayValue(record.reports)], ["Empfangene ADS-B-Pakete", displayValue(record.messageCount)],
         ["Signalstärke", displayValue(record.rssi, " dBFS")], ["Meldungsalter", displayValue(record.seenSec, " s")],
         ["Positionsalter", displayValue(record.seenPosSec, " s")], ["Quelle", record.source || "aktives OpenWebRX-Profil"],
@@ -4273,20 +3413,6 @@
       row.appendChild(value);
       content.appendChild(row);
     });
-    var links = q(".dnx-am-info-links", rec.infoPanel);
-    if (links) {
-      links.style.display = kind === "adsb" ? "block" : "none";
-      var linksKey = kind + "|" + (record.icao || record.id) + "|" + aircraftRegistration(record) + "|" + record.flight;
-      if (links.__key !== linksKey && kind === "adsb") {
-        links.textContent = "Externe Anbieter · neuer Tab (eigene Datenschutzregeln): ";
-        appendAircraftLinks(links, record);
-        var notice = document.createElement("a");
-        notice.href = APP_ROOT + "/models/adsb-realistic/bluebell-neutral/NOTICE.html";
-        notice.target = "_blank"; notice.rel = "noopener noreferrer";
-        notice.textContent = "Modellherkunft & Lizenzen"; links.appendChild(notice);
-        links.__key = linksKey;
-      }
-    }
     renderShipPhoto(rec, record);
   }
 
@@ -4302,53 +3428,36 @@
     closeInfoPanel(rec);
     var panel = document.createElement("div");
     panel.className = "dnx-am-info-panel";
-    panel.setAttribute("data-pane", "camera");
-    panel.innerHTML = '<div class="dnx-am-info-head"><button type="button" data-info-action="camera" aria-label="Kameraverfolgung" aria-pressed="false" title="Kamera folgt diesem Ziel"><svg width="17" height="14" viewBox="0 0 24 18" aria-hidden="true"><path fill="currentColor" d="M2 3h13v12H2zM16 6l6-4v14l-6-4z"/><path class="dnx-camera-stop" stroke="currentColor" stroke-width="2" d="M2 17L22 1"/></svg></button><span class="dnx-am-info-title"></span><button type="button" data-info-action="play" aria-label="Kameraverfolgung starten" title="Play · Kamera folgt dem Ziel">▶ Play</button><button type="button" data-info-action="stop-camera" title="Kameraverfolgung beenden">■ Stop</button><button type="button" data-info-action="collapse" title="Zielsteuerung einklappen" aria-expanded="true">−</button><button type="button" data-info-action="close" title="Schließen">×</button></div><div class="dnx-am-target-tabs"><button type="button" data-info-action="tab-camera">Kamera</button><button type="button" data-info-action="tab-options">Optionen</button><button type="button" data-info-action="tab-info">Infos</button><button type="button" data-info-action="tab-photo">Foto</button></div><div class="dnx-am-target-controls"></div><div class="dnx-am-info-content"></div><div class="dnx-am-info-nav"><button type="button" data-info-action="prev">‹ Zurück</button><span class="dnx-am-info-page"></span><button type="button" data-info-action="next">Weiter ›</button></div><div class="dnx-am-info-links"></div><button type="button" data-info-action="photo-refresh">Foto erneut laden</button><div class="dnx-am-info-photo" aria-live="polite"></div>';
+    panel.innerHTML = '<div class="dnx-am-info-head"><span class="dnx-am-info-title"></span><button type="button" data-info-action="toggle" title="Slideshow starten/pausieren">▶</button><button type="button" data-info-action="close" title="Schließen">×</button></div><div class="dnx-am-info-content"></div><div class="dnx-am-info-nav"><button type="button" data-info-action="prev">‹ Zurück</button><span class="dnx-am-info-page"></span><button type="button" data-info-action="next">Weiter ›</button></div><div class="dnx-am-info-photo" aria-live="polite"></div>';
     rec.infoPanel = panel;
     rec.infoKind = kind;
     rec.infoId = id;
     rec.infoIndex = 0;
     rec.win.appendChild(panel);
-    buildTargetControls(rec, kind, String(id));
-    panel.setAttribute("role", "region");
-    panel.setAttribute("aria-label", "Zielsteuerung · " + kind.toUpperCase() + " · " + id);
     panel.addEventListener("pointerdown", function (event) { event.stopPropagation(); }, true);
     panel.addEventListener("click", function (event) {
       var button = event.target.closest && event.target.closest("[data-info-action]");
       if (!button) return;
       var action = button.getAttribute("data-info-action");
-      if (action.indexOf("tab-") === 0) panel.setAttribute("data-pane", action.slice(4));
-      if (action === "collapse") {
-        var collapsed = panel.getAttribute("data-collapsed") !== "true";
-        panel.setAttribute("data-collapsed", collapsed ? "true" : "false");
-        button.setAttribute("aria-expanded", collapsed ? "false" : "true");
-        button.textContent = collapsed ? "+" : "−";
-        button.title = collapsed ? "Zielsteuerung ausklappen" : "Zielsteuerung einklappen";
-      }
-      if (action === "camera") toggleSelectedCamera(rec);
-      if (action === "play") {
-        if (!rec.follow || rec.follow.id !== String(id) || followTargetKind(rec) !== kind) startFollowTarget(rec, String(id));
-      }
-      if (action === "stop-camera") stopFollow(rec, false);
-      if (action === "zoom") zoomToRecord(rec, kind, String(id));
-      if (action === "offset-reset") { ensureTargetFollow(rec, kind, String(id)); setFollowModelOffset(rec, 0); }
-      if (action === "orbit") { ensureTargetFollow(rec, kind, String(id)); toggleAutoOrbit(rec); }
-      if (action === "replay") playTrack(rec, kind, String(id));
-      if (action === "stop-replay") stopTrackReplay(rec);
-      if (action === "photo-refresh") {
-        var holder = q(".dnx-am-info-photo", panel);
-        if (holder) holder.__photoKey = null;
-        if (kind === "adsb") AIRCRAFT_PHOTO_CACHE = Object.create(null);
-        renderInfoPage(rec);
-      }
-      if (action === "close") { closeInfoPanel(rec); selectTrafficTarget(rec, null, null); }
+      if (action === "close") closeInfoPanel(rec);
       if (action === "prev") { rec.infoIndex--; renderInfoPage(rec); }
       if (action === "next") { rec.infoIndex++; renderInfoPage(rec); }
+      if (action === "toggle") {
+        if (rec.infoTimer) {
+          window.clearInterval(rec.infoTimer);
+          rec.infoTimer = null;
+          button.textContent = "▶";
+        } else {
+          rec.infoTimer = window.setInterval(function () { rec.infoIndex++; renderInfoPage(rec); }, 3500);
+          button.textContent = "Ⅱ";
+        }
+      }
     });
     renderInfoPage(rec);
-    updateNativeCameraButton(rec);
-    // Historical autoplay argument never starts camera or slideshow.
-
+    if (autoplay) {
+      var toggle = q('[data-info-action="toggle"]', panel);
+      if (toggle) toggle.click();
+    }
   }
 
   function stopTrackReplay(rec) {
@@ -4499,8 +3608,6 @@
       .dnx-am-status{flex:1 1 auto;min-width:0;overflow:hidden;color:#9fd6b6;font:10px ui-monospace,monospace;text-align:right;text-overflow:ellipsis;white-space:nowrap;}
       .dnx-am-body{box-sizing:border-box;position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:2px;flex:1 1 auto;min-width:0;min-height:0;overflow:hidden;background:#263a31;}
       .dnx-am-body[data-mode="2d"],.dnx-am-body[data-mode="3d"]{grid-template-columns:minmax(0,1fr);}
-      .dnx-am-traffic-label{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;pointer-events:none!important;}
-      .dnx-am-traffic-label:before{display:none!important;}
       .dnx-am-pane{box-sizing:border-box;position:relative;min-width:0;min-height:0;overflow:hidden;background:#06131d;}
       .dnx-am-pane.hidden{display:none;}
       .dnx-am-map2d,.dnx-am-view{position:absolute;z-index:0;inset:0;min-width:0;min-height:0;background:#06131d;}
@@ -4530,35 +3637,12 @@
       .dnx-am-context-menu button{display:block;width:100%;min-width:0;height:30px;margin:3px 0;padding:0 8px;border:1px solid #34483c;border-radius:6px;background:#18251d;color:#e6edf3;font:700 11px Segoe UI,Arial,sans-serif;text-align:left;cursor:pointer;}
       .dnx-am-context-menu button:hover:not(:disabled){background:#244531;border-color:#67d18f;}
       .dnx-am-context-menu button:disabled{opacity:.48;cursor:not-allowed;}
-      .dnx-am-info-panel{box-sizing:border-box;position:absolute;z-index:24;right:8px;top:42px;width:min(278px,calc(100% - 16px));max-height:min(330px,calc(100% - 55px));display:flex;flex-direction:column;overflow:auto;border:1px solid #5ddc91;border-radius:9px;background:rgba(7,17,14,.96);color:#e6edf3;box-shadow:0 12px 34px rgba(0,0,0,.75);font:11px/1.35 Segoe UI,Arial,sans-serif;}
-      .dnx-camera-stop{display:none;}
-      [data-info-action="camera"].tracking .dnx-camera-stop{display:block;}
-      [data-info-action="camera"].tracking{background:#52616d;}
-      .dnx-am-info-panel>*{flex-shrink:0;}
-      .dnx-am-info-head{position:sticky;top:0;z-index:2;}
-      .dnx-am-target-tabs{display:flex;gap:3px;padding:4px 6px;border-bottom:1px solid #496250;background:#10241d;}
-      .dnx-am-target-tabs button{flex:1;background:#21343c;color:#edf4f8;border:1px solid #647783;border-radius:4px;padding:3px 2px;font:11px Segoe UI,Arial,sans-serif;cursor:pointer;}
-      .dnx-am-info-panel[data-pane=camera] [data-info-action=tab-camera],.dnx-am-info-panel[data-pane=options] [data-info-action=tab-options],.dnx-am-info-panel[data-pane=info] [data-info-action=tab-info],.dnx-am-info-panel[data-pane=photo] [data-info-action=tab-photo]{background:#4c646e;border-color:#d5e7ed;}
-      .dnx-am-info-panel:not([data-pane=info]) .dnx-am-info-content,.dnx-am-info-panel:not([data-pane=info]) .dnx-am-info-nav,.dnx-am-info-panel:not([data-pane=info]) .dnx-am-info-links{display:none;}
-      .dnx-am-info-panel:not([data-pane=photo]) .dnx-am-info-photo,.dnx-am-info-panel:not([data-pane=photo]) [data-info-action=photo-refresh]{display:none;}
-      .dnx-am-info-panel[data-pane=photo] .dnx-am-target-controls{display:none;}
-      .dnx-am-info-panel[data-pane=camera] .dnx-am-target-controls label:not([data-target-control="Kamera-Abstand"]):not([data-target-control="Kameraansicht"]),.dnx-am-info-panel[data-pane=camera] .dnx-am-target-actions,.dnx-am-info-panel[data-pane=camera] .dnx-am-target-controls small:not([data-target-status]){display:none;}
-      .dnx-am-info-panel[data-pane=options] [data-target-control="Info-Bereich"]{display:none;}
-      .dnx-am-info-panel[data-pane=info] .dnx-am-target-controls label:not([data-target-control="Info-Bereich"]),.dnx-am-info-panel[data-pane=info] .dnx-am-target-actions,.dnx-am-info-panel[data-pane=info] .dnx-am-target-controls small{display:none;}
-      .dnx-am-info-panel[data-collapsed=true]>:not(.dnx-am-info-head){display:none!important;}
-      .dnx-am-target-controls{padding:7px;display:grid;gap:6px;border-bottom:1px solid #496250;}
-      .dnx-am-target-controls label{display:flex;align-items:center;justify-content:space-between;gap:6px;}
-      .dnx-am-target-controls select{max-width:130px;background:#17252c;color:#edf4f8;border:1px solid #647783;border-radius:4px;padding:3px;}
-      .dnx-am-target-controls input[type=range]{width:125px;min-width:60px;}
-      .dnx-am-target-controls small{color:#bbcbd2;}
-      .dnx-am-target-actions{display:flex;flex-wrap:wrap;gap:4px;}
-      .dnx-am-target-actions button{background:#21343c;color:#edf4f8;border:1px solid #647783;border-radius:4px;padding:4px 6px;cursor:pointer;}
-      .dnx-am-info-head button:disabled{opacity:.55;cursor:default;}
+      .dnx-am-info-panel{box-sizing:border-box;position:absolute;z-index:24;right:8px;top:42px;width:min(315px,calc(100% - 16px));max-height:calc(100% - 50px);display:flex;flex-direction:column;overflow:hidden;border:1px solid #5ddc91;border-radius:9px;background:rgba(7,17,14,.96);color:#e6edf3;box-shadow:0 12px 34px rgba(0,0,0,.75);font:11px/1.35 Segoe UI,Arial,sans-serif;}
       .dnx-am-info-head{display:flex;align-items:center;gap:5px;padding:6px 7px;background:#143322;border-bottom:1px solid #31513b;}
       .dnx-am-info-title{flex:1;min-width:0;overflow:hidden;color:#d8ffe4;font-weight:700;text-overflow:ellipsis;white-space:nowrap;}
       .dnx-am-info-head button,.dnx-am-info-nav button{border:1px solid #496250;border-radius:5px;background:#20352a;color:#fff;cursor:pointer;}
       .dnx-am-info-head button{height:22px;padding:0 6px;font:700 10px Arial,sans-serif;}
-      .dnx-am-info-content{flex:0 0 auto;min-height:0;overflow:visible;padding:7px;}
+      .dnx-am-info-content{min-height:0;overflow:auto;padding:7px;}
       .dnx-am-info-content h4{margin:0 0 5px;color:#9ff1b8;font-size:11px;}
       .dnx-am-info-row{display:grid;grid-template-columns:minmax(86px,.8fr) minmax(0,1.2fr);gap:8px;padding:3px 0;border-bottom:1px solid rgba(180,210,190,.12);}
       .dnx-am-info-row span:first-child{color:#9eafa5;}
@@ -4566,9 +3650,9 @@
       .dnx-am-info-nav{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:5px 7px;border-top:1px solid #31513b;}
       .dnx-am-info-nav button{height:23px;padding:0 8px;font:700 10px Segoe UI,Arial,sans-serif;}
       .dnx-am-info-page{color:#a8c8b1;font:10px ui-monospace,monospace;}
-      .dnx-am-info-photo{box-sizing:border-box;display:flex;flex:0 0 auto;flex-direction:column;gap:4px;max-height:none;overflow:visible;padding:6px 7px 7px;border-top:1px solid #31513b;background:rgba(4,11,8,.76);}
-      .dnx-am-info-photo-image{display:block;width:100%;height:160px;object-fit:contain;object-position:center;border-radius:5px;background:#0b1712;}
-      .dnx-am-info-photo-caption{min-width:0;overflow:hidden;color:#a8b9ad;font:9px/1.3 Segoe UI,Arial,sans-serif;text-overflow:ellipsis;white-space:normal;}
+      .dnx-am-info-photo{box-sizing:border-box;display:flex;flex:0 0 auto;flex-direction:column;gap:4px;max-height:160px;overflow:hidden;padding:6px 7px 7px;border-top:1px solid #31513b;background:rgba(4,11,8,.76);}
+      .dnx-am-info-photo-image{display:block;width:100%;height:112px;object-fit:cover;object-position:center;border-radius:5px;background:#0b1712;}
+      .dnx-am-info-photo-caption{min-width:0;overflow:hidden;color:#a8b9ad;font:9px/1.3 Segoe UI,Arial,sans-serif;text-overflow:ellipsis;white-space:nowrap;}
       .dnx-am-info-photo-caption a{color:#9de7b4;text-decoration:underline;}
       .dnx-am-info-photo-state{min-height:28px;display:grid;place-items:center;color:#b8c9be;font:10px/1.4 Segoe UI,Arial,sans-serif;text-align:center;}
       .dnx-am-toast{position:absolute;z-index:26;left:50%;bottom:28px;transform:translateX(-50%);max-width:90%;padding:7px 10px;border:1px solid #71dc9b;border-radius:7px;background:rgba(6,16,12,.94);color:#edfff2;font:11px Segoe UI,Arial,sans-serif;text-align:center;pointer-events:none;}
@@ -4700,7 +3784,6 @@
         '</section>' +
         '<section class="dnx-am-pane dnx-am-pane-3d">' +
           '<div class="dnx-am-view" aria-label="Cesium 3D-Globus"></div>' +
-          '<div data-am-selection-frame hidden aria-label="Ausgewähltes Flugzeug" style="position:absolute;z-index:9;pointer-events:none;box-sizing:border-box;border:2px solid transparent;border-radius:3px"></div>' +
           '<div class="dnx-am-wait dnx-am-3d-wait">Lade lokale Cesium-3D-Ansicht …</div>' +
           '<div class="dnx-am-model-credit"><a href="' + APP_ROOT + '/models/' + (key === "ais" ? 'ais-realistic/credits.html' : 'adsb-realistic/credits.html') + '" target="_blank" rel="noopener noreferrer" title="Autoren, Quellen und Lizenzen der 3D-' + (key === "ais" ? 'Schiffs' : 'Flugzeug') + 'modelle">3D-Modelle · Quellen &amp; Lizenzen</a></div>' +
           '<div class="dnx-am-follow-hud" data-am-follow-hud hidden>' +
@@ -4721,7 +3804,7 @@
           '</div>' +
         '</section>' +
       '</div>' +
-      '<div class="dnx-am-footer">' + (key === "adsb" ? 'Typdaten: <a style="color:#b5d7ef" href="https://github.com/Mictronics/aircraft-database" target="_blank" rel="noopener noreferrer">Mictronics Aircraft Database</a> (<a style="color:#b5d7ef" href="' + APP_ROOT + '/models/adsb-realistic/bluebell-neutral/type-db/LICENSE.txt" target="_blank" rel="noopener noreferrer">ODC-By</a>) · ' : '') + 'Daten: aktives OpenWebRX-Profil · OSM + OpenSeaMap-Seemarken · keine amtliche Seekarte · nicht zur Navigation</div>';
+      '<div class="dnx-am-footer">Daten: aktives OpenWebRX-Profil · OSM + OpenSeaMap-Seemarken · keine amtliche Seekarte · nicht zur Navigation</div>';
 
     var rec = {
       spec: spec, win: win, viewer: null, map2d: null, loading: false, failed: false, mapFailed: false,
@@ -4782,22 +3865,18 @@
   function loadPrefs(key) {
     var prefs = {
       tracks: true, labels: true, mode: "both", baseMap: "osm",
-      aircraftSize: 1, aircraftDistance: 0,
       /* SDRangel map defaults: sun light + FXAA on, terrain/buildings off */
       sunLight: true, terrainLighting: false, terrain: false, buildings: false,
       fxaa: true, msaa: 1, labelScale: 1,
       rain: false, clouds: false, nasa: false, nasaOpacity: 50,
-      groundTracks: "all", trackColor: "auto", smoothWindow: 0, smoothLambda: 1,
+      groundTracks: "all", smoothWindow: 0, smoothLambda: 1,
       filterName: "", filterDistance: 0,
       railways: false, seamarks: false, posRings: false, hdr: true
     };
     try {
       var value = JSON.parse(localStorage.getItem("dnx.airmarine." + key + ".view.v2") || "null");
       if (value && typeof value === "object") {
-        if ([1, 1.5, 2, 3].indexOf(Number(value.aircraftSize)) >= 0) prefs.aircraftSize = Number(value.aircraftSize);
-        if ([100, 250, 500, 1000, 3000].indexOf(Number(value.aircraftDistance)) >= 0) prefs.aircraftDistance = Number(value.aircraftDistance);
         if (value.tracks !== undefined) prefs.tracks = !!value.tracks;
-        if (value.trackColor === "auto" || /^#[0-9a-f]{6}$/i.test(value.trackColor || "")) prefs.trackColor=value.trackColor;
         if (value.labels !== undefined) prefs.labels = !!value.labels;
         if (["2d", "3d", "both"].indexOf(value.mode) >= 0) prefs.mode = value.mode;
         if (BASEMAPS[value.baseMap]) prefs.baseMap = value.baseMap;
@@ -4823,59 +3902,8 @@
     try { localStorage.setItem("dnx.airmarine." + rec.spec.key + ".view.v2", JSON.stringify(rec.prefs)); } catch (e) {}
   }
 
-  function stepWheelControl(control, deltaY) {
-    if (!control || control.disabled || control.readOnly || !deltaY) return false;
-    var tag = String(control.tagName || "").toLowerCase();
-    if (tag === "select") {
-      var options = control.options || [];
-      var step = deltaY > 0 ? 1 : -1;
-      var index = control.selectedIndex + step;
-      while (index >= 0 && index < options.length && options[index].disabled) index += step;
-      if (index >= 0 && index < options.length) control.selectedIndex = index;
-      return true;
-    }
-    if (tag !== "input" || ["range", "number"].indexOf(control.type) < 0) return false;
-    var step = Number(control.step);
-    if (!(step > 0)) step = 1;
-    var min = control.min === "" || control.min === undefined ? -Infinity : Number(control.min);
-    var max = control.max === "" || control.max === undefined ? Infinity : Number(control.max);
-    var value = Number(control.value) || 0;
-    control.value = String(Math.round(clamp(value + (deltaY < 0 ? step : -step), min, max) * 1000000) / 1000000);
-    return true;
-  }
-  function handleControlWheel(event) {
-    if (event.ctrlKey || event.metaKey || !event.target) return;
-    var control = event.target.closest && event.target.closest("select,input[type=range],input[type=number]");
-    if (!control && event.target.closest) {
-      var label = event.target.closest("label");
-      if (label) control = label.querySelector("select,input[type=range],input[type=number]");
-    }
-    if (!stepWheelControl(control, event.deltaY)) return;
-    event.preventDefault(); event.stopPropagation();
-    control.dispatchEvent(new Event("input", { bubbles: true }));
-    control.dispatchEvent(new Event("change", { bubbles: true }));
-  }
-
   function bindWindow(rec) {
     var win = rec.win;
-    win.addEventListener("wheel", handleControlWheel, { capture: true, passive: false });
-    var offsetSlider = q("[data-am-follow-offset]", win);
-    if (offsetSlider) {
-      var applyOffset = function (event) {
-        event.stopPropagation();
-        setFollowModelOffset(rec, offsetSlider.value);
-      };
-      offsetSlider.addEventListener("input", applyOffset);
-      offsetSlider.addEventListener("change", applyOffset);
-      offsetSlider.addEventListener("pointerdown", function (event) {
-        rec.__offsetDragging = true;
-        event.stopPropagation();
-      });
-      function finishOffset() { rec.__offsetDragging = false; updateFollowUi(rec); }
-      offsetSlider.addEventListener("pointerup", finishOffset);
-      offsetSlider.addEventListener("pointercancel", finishOffset);
-      offsetSlider.addEventListener("lostpointercapture", finishOffset);
-    }
     win.addEventListener("pointerdown", function () { focusWindow(rec); }, true);
     var head = q(".dnx-am-head", win);
     if (head) {
@@ -4927,7 +3955,6 @@
       }
       if (option === "tracks" || option === "labels") {
         rec.prefs[option] = !!event.target.checked;
-        if (option === "tracks" && rec.prefs.tracks && rec.prefs.groundTracks === "off") rec.prefs.groundTracks="all";
         savePrefs(rec);
         scheduleSync(rec.spec.key);
       }
@@ -5090,7 +4117,7 @@
   }
 
   function syncToolbarButtons() {
-    [["adsb", "ADS-B 2D/3D"], ["ais", "AIS 2D/3D"]].forEach(function (item) {
+    [["adsb", "ADS-B"], ["ais", "AIS"]].forEach(function (item) {
       var key = item[0];
       var label = item[1];
       var button = byId("dnx-master-" + key);
@@ -5103,7 +4130,7 @@
         : label + " 3D ist aus. Klicken zum Öffnen.";
       button.setAttribute("aria-label", label + " 3D: " + state);
       button.setAttribute("aria-pressed", active ? "true" : "false");
-      button.style.setProperty("background", active ? "#1f8f52" : "#666666", "important");
+      button.style.setProperty("background", active ? (key === "adsb" ? "#075985" : "#146c43") : "#555b62", "important");
       button.style.setProperty("color", "#ffffff", "important");
       button.style.setProperty("border-color", active ? (key === "adsb" ? "#38bdf8" : "#86efac") : "#ffffff", "important");
     });
@@ -5121,7 +4148,7 @@
       }
     });
 
-    [["adsb", "ADS-B 2D/3D"], ["ais", "AIS 2D/3D"]].forEach(function (item) {
+    [["adsb", "ADS-B"], ["ais", "AIS"]].forEach(function (item) {
       var key = item[0];
       var button = byId("dnx-master-" + key);
       if (button && button.parentNode !== row) {
@@ -5245,40 +4272,8 @@
       aisModelAssetKey: aisModelAssetKey,
       aisShipDimensions: aisShipDimensions,
       adsbModelAssetKey: adsbModelAssetKey,
-      exactAircraftType: exactAircraftType,
-      lookupAircraftType: lookupAircraftType,
-      aircraftModelNotice: aircraftModelNotice,
       aircraftModelLength: aircraftModelLength,
       aircraftModelScale: aircraftModelScale,
-      aircraftSizeFactor: aircraftSizeFactor,
-      installFollowInput: installFollowInput,
-      zoomSelectedAircraft: zoomSelectedAircraft,
-      aircraftTargetZoom: aircraftTargetZoom,
-      installTrafficZoom: installTrafficZoom,
-      wheelHitsSelectedTarget: wheelHitsSelectedTarget,
-      buildTargetControls: buildTargetControls,
-      openInfoSlideshow: openInfoSlideshow,
-      aircraftDisplayProperty: aircraftDisplayProperty,
-      cesiumTrackMaterial: cesiumTrackMaterial,
-      refreshAircraftContrast: refreshAircraftContrast,
-      installNativeFocusBounds: installNativeFocusBounds,
-      pickTrafficTarget: pickTrafficTarget,
-      nativeTargetFor: nativeTargetFor,
-      toggleSelectedCamera: toggleSelectedCamera,
-      startFollowTarget: startFollowTarget,
-      stopFollow: stopFollow,
-      updateFollowCamera: updateFollowCamera,
-      selectTrafficTarget: selectTrafficTarget,
-      updateSelectionFrame: updateSelectionFrame,
-      trafficLabelNode: trafficLabelNode,
-      updateTrafficLabels: updateTrafficLabels,
-      applyAircraftContrast: applyAircraftContrast,
-      aircraftDistanceZoom: aircraftDistanceZoom,
-      setAircraftDistance: setAircraftDistance,
-      setFollowModelOffset: setFollowModelOffset,
-      stepWheelControl: stepWheelControl,
-      handleControlWheel: handleControlWheel,
-      leafletIcon: leafletIcon,
       aircraftModelForwardAxis: aircraftModelForwardAxis,
       aircraftModelAssetFile: aircraftModelAssetFile,
       normalizeAngleDegrees: normalizeAngleDegrees,
@@ -5294,15 +4289,11 @@
       getShipPhoto: getShipPhoto,
       typeShipPhotoScore: typeShipPhotoScore,
       aircraftPhotoQueries: aircraftPhotoQueries,
-      aircraftRegistration: aircraftRegistration,
-      aircraftExternalLinks: aircraftExternalLinks,
-      exactAircraftPhotoScore: exactAircraftPhotoScore,
       getAircraftPhoto: getAircraftPhoto,
       exactAircraftPhotoScore: exactAircraftPhotoScore,
       typeAircraftPhotoScore: typeAircraftPhotoScore,
       updateMotion2d: updateMotion2d,
       extrapolate2d: extrapolate2d,
-      syncMap2D: syncMap2D,
       baseMaps: BASEMAPS,
       baseMapAvailable: baseMapAvailable,
       baseMapTileUrl: baseMapTileUrl,
@@ -5312,12 +4303,7 @@
       smoothTrackPoints: smoothTrackPoints,
       haversineKm: haversineKm,
       recordPassesFilters: recordPassesFilters,
-      trackDisplayPoints: trackDisplayPoints,
-      trackColors: trackColors,
       trackShow: trackShow,
-      trackContrast2D: trackContrast2D,
-      createTrack2D: createTrack2D,
-      styleTrack2D: styleTrack2D,
       gibsUrl: gibsUrl,
       layersPanelHtml: layersPanelHtml,
       windows: WINDOWS,

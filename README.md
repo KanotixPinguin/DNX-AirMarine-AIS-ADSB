@@ -36,11 +36,31 @@
 
 Browser-side AIS/ADS-B add-on for compatible OpenWebRX+ installations. **Release v4.17 — published in the DNX Projects catalog.**
 
+## Funktionsumfang (`v4.17`) — Verfolgung, Tracking, Bilder & Wetter-Ebenen
+
+Getrennte, frei verschieb- und skalierbare Live-Fenster für **AIS (Schiffsverkehr)** und **ADS-B (Flugverkehr)** in den Ansichtsmodi **`2D`** (Leaflet), **`3D`** (CesiumJS 1.121) und **`BEIDE`** (Split-Ansicht):
+
+- **Verfolgung, Tracking & Live-Beobachtung (2D & 3D):**
+  - **Echtzeit-Bewegung von A nach B (`v4.17`):** Kontinuierliches Gleiten zwischen Empfangsmeldungen inklusive zeitlich begrenzter 60-s-Extrapolation in 2D und 3D; Bewegungsproben werden erst ab echter Ortsänderung erfasst.
+  - **3D-Folgeansicht / Kameraverfolgung:** Start per Rechtsklick oder im Info-Panel (`Mitfahren / Verfolgen`, Live-HUD mit Kurs, Höhe, Geschwindigkeit & **Distanz zum Empfänger-Standort**). Frei schwenkbare Kamerabahn, Kamera-Voreinstellungen (`Hinten`, `Seite`, `Vorne`, `Oben`), wählbarer `Kamera-Abstand` (`100 m` bis `3 km`), zuschaltbare **`360°`-Kameradrehung (Auto-Umlauf)**, mitwandernde 2D-Karte und rein visueller, jederzeit zurücksetzbarer **Modell-Offset**.
+  - **Spuren, Glättung & Wiedergabe (Replay):** Bodenspuren wahlweise für `Alle Ziele`, `Nur Folgeziel` oder `Keine`, konfigurierbare **Spurfarbe**, optionale **Whittaker-Eilers-Spurenglättung** (`5`, `10` oder `20` Punkte, frei wählbares `λ`) sowie **Spur abspielen / Replay** gespeicherter Routen.
+  - **Filter & Zielbeobachtung:** Live-Filterung nach Name, Flugnummer oder Typ (`Regex`) sowie **Umkreisfilter (km)** bezogen auf den Empfänger-Standort, **Positionsringe** um den Empfänger, `Alle Ziele` (verkehrsabhängiges Einpassen) und `Start`-Rücksprung.
+- **Bilder / Fotos & mehrseitige Ziel-Details:**
+  - **Live-Fotos & `Typbild`-Abgleich:** Automatische **Wikimedia-Commons-Fotosuche** im eigenen **`Foto`-Tab** des Infos-Panels — bei Schiffen über `IMO → Schiffsname → MMSI`, bei Flugzeugen über `Registrierung → ICAO-Hex → Flugzeugtyp`, jeweils mit klarer Kennzeichnung (`Schiffsfoto` / `Foto` bzw. `Typbild`) und sichtbarer Autoren-/Lizenzangabe sowie Direktlinks (`ADSB.lol`, `ADS-B Exchange`, `Planespotters`, `JetPhotos`, `Flightradar24`, `FlightAware`, `Wikimedia Commons`).
+  - **4-seitiges Infos-Panel:** Umschaltbare Detailansichten (`Identität`, `Position`, `Bewegung`, `Schiff`/`Flugzeug` inkl. Mictronics-Typabgleich), separater `Kamera`- und `Optionen`-Reiter sowie `Flugzeuggröße`-Multiplikator (`1×` bis `3×`).
+- **Wetter-, Karten- & Globus-Ebenen (`Ebenen & Darstellung`):**
+  - **Wetter-Overlays:** Zuschaltbares **Regen-Radar** (`RainViewer`), animierte **Wolken**-Schicht und **NASA-Satellitenbild** (`NASA GIBS MODIS TrueColor`, jeweils ohne eigenen API-Schlüssel).
+  - **7 schlüssellose Kartenstile & Zusatzlayer:** `OpenStreetMap`, `Esri Satellit`, `Esri Straßen`, `OpenTopoMap`, `Carto Hell`, `Carto Dunkel` und `Nautik · OSM + OpenSeaMap`, kombiniert mit **Seekarten-Signalen (`OpenSeaMap`)** und **Bahnstrecken (`OpenRailwayMap`)**.
+  - **3D-Globus & Grafik (`CesiumJS 1.121`):** Zuschaltbares `Sonnenlicht`, `Tag/Nacht`-Beleuchtung, `3D-Gelände`, `3D-Gebäude`, `FXAA`, `MSAA` (`Aus`, `2×`, `4×`), `HDR` und stufenloser `Labels`-Größenregler.
+- **24 lokal ausgelieferte CC-BY-4.0-3D-Klassenmodelle:** 14 Schiffsklassen (`Container`, `Tanker`, `LNG`, `Bulk`, `Kreuzfahrt`, `Fähre`, `Kleine Fähre`, `Navy`, `Lotsenboot`, `Segelschiff`, `Yacht`, `Runabout`, `Schlepper`, `Fischerei`) und 10 Flugzeugklassen (`A320`, `A350`, `A380`, `B737`, `B787`, `eVTOL`, `Drone`, `F-15`, `ASK 21`, `Helicopter`).
+
+> **Abgrenzung zu `DNX MultiSDR`:** Dieses OpenWebRX+-Mod-Mode-Paket enthält bewusst **keine** Sprachausgabe (`Sprache`-Tab), **keine** Mikrofon-Sprachsteuerung, **keinen** Blitz-Alarm und **kein** Browser-GPS (`navigator.geolocation` — Distanz- und Umkreiswerte beziehen sich auf den konfigurierten Empfänger-Standort). Sprachansagen bei ADS-B (`Sprache`-Tab mit Notfall-/Umkreis-Alarm), GPS-Standortübernahme, Cockpit-/Route-Verfolgung, Blitzalarm mit Sprache/Ton, Gewitter-/Nowcast-Vorhersagebilder und Mikrofon-Sprachsteuerung (`dnx-befehl.js`) sind Bestandteil des separaten Systems **DNX MultiSDR**.
+
 ## What v4.17 contains — movement from A to B, fixed
 
 v4.16's glide machinery was right, but a sampling bug froze it: every sync tick recorded a new motion sample even when the position had not changed (list re-broadcasts, altitude jitter). The velocity of the last two samples was diluted to zero, so targets never travelled from A to B. v4.17 records a motion sample **only when the target has really moved** (same ~3 m threshold as the trail), in both the 3D sampled positions and the 2D motion pairs. Now ships and aircraft visibly travel along their routes and glide continuously between reports — like SDRangel.
 
-Everything else from v4.13–v4.16 is included: photo slideshow with „Typbild" caption, 50 px aircraft size, traffic-aware zoom, satellite + 6 keyless map styles, sun light, day/night, 3D buildings/terrain, FXAA/MSAA/HDR, label scale, rain radar + cloud animation + NASA imagery, ground tracks, Whittaker-Eilers smoothing, name/distance filters, smooth motion for ships and aircraft, target pursuit camera with lock-on silhouette, map pan-along, live follow HUD, railways, seamarks, position rings.
+Everything else from v4.13–v4.16 is included: photo slideshow with „Typbild" caption, 50 px aircraft size, traffic-aware zoom, satellite + 6 keyless map styles, sun light, day/night, 3D buildings/terrain, FXAA/MSAA/HDR, label scale, rain radar + cloud animation + NASA imagery, ground tracks, Whittaker-Eilers smoothing, name/distance filters, smooth motion for ships and aircraft, target pursuit camera with lock-on silhouette, map pan-along, live follow HUD, railways, seamarks, position rings, and track replay. (Voice alerts/TTS, microphone voice control, lightning alarms, and browser `navigator.geolocation` are not part of this OpenWebRX+ add-on; they live in the separate **DNX MultiSDR** platform.)
 
 ## Aircraft sources and model-size calibration
 

@@ -103,3 +103,14 @@ The receiver must already provide CesiumJS at `/static/plugins/receiver/dnx_weat
 - `dnx_airmarine_3d/models/ais/` — legacy AIS fallback class models.
 
 Photos load at runtime from Wikimedia Commons and need internet access in the browser; without it the info panels simply show „Kein Bild gefunden".
+
+---
+
+## Verbindungen im DNX-Ökosystem
+
+![DNX Gesamtarchitektur & Verbindungen](docs/dnx-architektur-verbindungen.png)
+![Datenflüsse: Spektrum, 3D-Hintergrund & Speicherung](docs/dnx-datenfluss-speicherung.png)
+
+* **Verbindung zu `DNX-Styler` (`#dnx-master-tool-row` & `TOOL_DEFS`):** Die Werkzeuge `ADS-B` (`t_adsb` / `#dnx-master-adsb`) und `AIS` (`t_ais` / `#dnx-master-ais`) binden sich in die gemeinsame Empfänger-Werkzeugzeile ein; Einstellungen und Overlay-Zustand liegen unter `localStorage["dnx.airmarine.*"]` / `dnx.receiver.overlay.visible`.
+* **Verbindung zu `DNX-Receiver-Account-Control` (`:8095/api/me`):** Die Berechtigungen `adsb_view`, `adsb_control`, `ais_view` und `ais_control` steuern rollenbasiert die Sichtbarkeit und Eingaberechte für `guest`, `user`, `extended` und `admin`.
+* **Verbindung zu `DNX-Receiver-Tool-Button-Bar` & `OWRXP-DNX`:** Alle Schaltflächen passen sich automatisch den gemeinsamen Button-Farben und dem Styler-Design (`dnx_styler_corners`) an.
